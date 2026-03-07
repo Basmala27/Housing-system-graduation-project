@@ -2,14 +2,14 @@
 
 A React.js graduation project that simulates the Ministry of Housing application system for Egyptian citizens.
 
-## 📋 Project Overview
+ Project Overview
 
 This is a complete Frontend MVP for an online government housing system that demonstrates:
 - Citizen flow (registration, browsing projects, applying, tracking status)
 - Admin flow (managing applications, approving/rejecting)
 - Complete application lifecycle management
 
-## 🛠️ Tech Stack
+Tech Stack
 
 - **Frontend**: React.js with Vite
 - **Routing**: React Router DOM
@@ -17,7 +17,7 @@ This is a complete Frontend MVP for an online government housing system that dem
 - **Storage**: LocalStorage (no backend)
 - **Styling**: Plain CSS (minimal, clean design)
 
-## 🏗️ Project Structure
+ Project Structure
 
 ```
 src/
@@ -46,7 +46,7 @@ src/
  └── index.css                  # Global styles
 ```
 
-## 🔐 Authentication System
+ Authentication System
 
 **Fake Authentication using localStorage:**
 - Email containing "admin" → Admin role
@@ -62,36 +62,36 @@ src/
   }
   ```
 
-## 📱 Features
+ Features
 
-### Citizen Features
-- ✅ User registration and login
-- ✅ Browse available housing projects
-- ✅ View detailed project information
-- ✅ Submit housing applications with document upload
-- ✅ Track application status
-- ✅ Search and filter projects
+Citizen Features
+-  User registration and login
+-  Browse available housing projects
+-  View detailed project information
+-  Submit housing applications with document upload
+-  Track application status
+-  Search and filter projects
 
-### Admin Features
-- ✅ View all applications
-- ✅ Approve/reject applications
-- ✅ Search and filter applications
-- ✅ View application statistics
-- ✅ Delete applications
+ Admin Features
+-  View all applications
+-  Approve/reject applications
+-  Search and filter applications
+-  View application statistics
+-  Delete applications
 
-### Project Management
-- ✅ 5 dummy housing projects with realistic data
-- ✅ Project details with pricing and availability
-- ✅ Search and filter functionality
-- ✅ Responsive grid layout
+ Project Management
+-  5 dummy housing projects with realistic data
+-  Project details with pricing and availability
+-  Search and filter functionality
+-  Responsive grid layout
 
-## 🚀 Getting Started
+ Getting Started
 
 ### Prerequisites
 - Node.js (v14 or higher)
 - npm or yarn
 
-### Installation
+#Installation
 
 1. **Clone the repository**
    ```bash
@@ -117,7 +117,7 @@ src/
 npm run build
 ```
 
-## 👥 Demo Accounts
+# Demo Accounts
 
 ### Citizen Account
 - **Email**: citizen@example.com
@@ -127,7 +127,7 @@ npm run build
 - **Email**: admin@example.com
 - **Password**: 123456
 
-## 📊 Dummy Data
+# Dummy Data
 
 The system includes:
 - **5 Housing Projects** with realistic Egyptian locations and pricing
@@ -135,7 +135,7 @@ The system includes:
 - **Application Forms**: Complete with validation and document upload
 - **Status Tracking**: Pending, Approved, Rejected states
 
-## 🎯 User Flows
+# User Flows
 
 ### Citizen Flow
 1. Register/Login → 2. Browse Projects → 3. View Details → 4. Apply → 5. Track Status
@@ -143,7 +143,7 @@ The system includes:
 ### Admin Flow
 1. Login (admin) → 2. View Dashboard → 3. Review Applications → 4. Approve/Reject
 
-## 📝 Key Pages
+##  Key Pages
 
 ### Home Page
 - Introduction to the housing system
@@ -165,7 +165,7 @@ The system includes:
 - Statistics overview
 - Search and filter capabilities
 
-## 🔧 Technical Implementation
+##  Technical Implementation
 
 ### State Management
 - **AuthContext**: Global authentication state
@@ -183,14 +183,14 @@ The system includes:
 - **Navigation**: Dynamic navbar based on user role
 - **Redirects**: Automatic redirects after login/logout
 
-## 🎨 Design Principles
+##  Design Principles
 
 - **Clean & Minimal**: Focus on functionality over aesthetics
 - **Responsive**: Works on desktop and mobile devices
 - **Accessible**: Semantic HTML and proper labeling
 - **User-Friendly**: Clear navigation and feedback
 
-## 📚 Educational Value
+##  Educational Value
 
 This project demonstrates:
 - React.js component architecture
@@ -201,18 +201,18 @@ This project demonstrates:
 - Role-based access control
 - Responsive design principles
 
-## 🚫 Limitations
+##  Limitations
 
 - **No Real Backend**: Uses localStorage only
 - **No Real File Upload**: Simulated file upload
 - **No Email Notifications**: Status updates only in UI
 - **Demo Data Only**: Not connected to real government systems
 
-## 📄 License
+##  License
 
 This is a graduation project for educational purposes only.
 
-## 🤝 Contributing
+##  Contributing
 
 This is a student project - not accepting contributions at this time.
 
