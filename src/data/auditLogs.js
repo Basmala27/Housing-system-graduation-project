@@ -121,20 +121,20 @@ export const getActionColor = (type) => {
 export const getActionIcon = (type) => {
   switch (type) {
     case 'approval':
-      return '✓';
+      return 'v';
     case 'rejection':
-      return '✗';
+      return 'x';
     case 'creation':
       return '+';
     case 'update':
-      return '✎';
+      return 'edit';
     case 'deletion':
-      return '−';
+      return '-';
     case 'role_change':
-      return '👤';
+      return 'person';
     case 'export':
-      return '📊';
+      return 'graph-up';
     default:
-      return '•';
+      return 'circle';
   }
 };

@@ -44,6 +44,12 @@ exports.getAllApplications = async (req, res) => {
     } catch (error) {
         console.error('Error in getAllApplications:', error);
         
+        // Get query parameters for fallback filtering
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const status = req.query.status;
+        const search = req.query.search;
+        
         // Fallback data when MongoDB is not available
         const fallbackApplications = [
             {
@@ -110,13 +116,13 @@ exports.getAllApplications = async (req, res) => {
             },
             {
                 _id: 'fallback-4',
-                name: 'Hassan Omar',
+                name: 'Ahmed Mohamed',
                 nationalId: '33333333333333',
-                email: 'hassan@example.com',
+                email: 'ahmed@example.com',
                 phone: '01033333333',
-                projectId: '507f1f77bcf86cd799439011',
-                projectName: 'New Capital City Complex',
-                income: 18000,
+                projectId: 'PASTE_ID_HERE',
+                projectName: 'Cairo Skyline',
+                income: 8000,
                 familySize: 5,
                 currentHousing: 'Shared accommodation',
                 status: 'rejected',

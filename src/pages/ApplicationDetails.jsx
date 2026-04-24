@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import dataService from '../services/dataService';
 
 const ApplicationDetails = () => {
   const { id } = useParams();
@@ -8,24 +9,81 @@ const ApplicationDetails = () => {
   const [error, setError] = useState(null);
   const [updating, setUpdating] = useState(false);
 
-  // Fetch application details
-  const fetchApplicationDetails = async () => {
+  // Get user details using data service with fallback
+  const getUserDetails = (application) => {
+    try {
+      // Try data service first
+      const user = dataService.getApplicationUser(application);
+      if (user && user.name !== 'Unknown User') {
+        return user;
+      }
+      
+      // Fallback for direct data access
+      if (application.applicationData) {
+        return {
+          id: application.userId || application.id || 'unknown',
+          name: application.applicationData.applicantName || 'Unknown User',
+          email: application.applicationData.applicantEmail || 'unknown@example.com',
+          phone: application.applicationData.applicantPhone || 'N/A',
+          role: 'citizen',
+          isVerified: false
+        };
+      }
+      
+      // Backend applications have name, email, phone directly
+      if (application.name) {
+        return {
+          id: application.userId || application._id || 'unknown',
+          name: application.name,
+          email: application.email || 'unknown@example.com',
+          phone: application.phone || 'N/A',
+          role: 'citizen',
+          isVerified: false
+        };
+      }
+      
+      return {
+        id: 'unknown',
+        name: 'Unknown User',
+        email: 'unknown@example.com',
+        phone: 'N/A',
+        role: 'citizen',
+        isVerified: false
+      };
+    } catch (error) {
+      console.error('Error getting user details:', error);
+      return {
+        id: 'unknown',
+        name: 'Unknown User',
+        email: 'unknown@example.com',
+        phone: 'N/A',
+        role: 'citizen',
+        isVerified: false
+      };
+    }
+  };
+
+  // Get project details using data service
+  const getProjectDetails = (projectId) => {
+    return dataService.getProject(projectId);
+  };
+
+  // Fetch application details using data service
+  const fetchApplicationDetails = () => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`http://localhost:5000/api/applications/${id}`);
+      console.log('Fetching application details for ID:', id);
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      const foundApplication = dataService.getApplication(id);
       
-      const data = await response.json();
-      
-      if (data.success) {
-        setApplication(data.data);
+      if (foundApplication) {
+        console.log('Application found:', foundApplication.id);
+        setApplication(foundApplication);
       } else {
-        throw new Error(data.message || 'Failed to fetch application details');
+        console.error('Application not found with ID:', id);
+        throw new Error(`Application not found with ID: ${id}`);
       }
     } catch (err) {
       console.error('Error fetching application details:', err);
@@ -35,41 +93,20 @@ const ApplicationDetails = () => {
     }
   };
 
-  // Update application status
+  // Update application status using data service
   const updateStatus = async (newStatus, rejectionReason = null) => {
     try {
       setUpdating(true);
       
-      const requestBody = {
-        status: newStatus,
-        reviewedBy: 'Admin User'
-      };
+      // Use data service to update status
+      const updatedApplication = dataService.updateApplicationStatus(id, newStatus, rejectionReason, 'Admin');
       
-      if (newStatus === 'rejected' && rejectionReason) {
-        requestBody.rejectionReason = rejectionReason;
-      }
+      // Update local state
+      setApplication(updatedApplication);
       
-      const response = await fetch(`http://localhost:5000/api/applications/${id}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      console.log('Application status updated successfully:', updatedApplication.status);
       
-      if (data.success) {
-        // Update local state
-        setApplication(data.data);
-        alert(`Application ${newStatus} successfully!`);
-      } else {
-        throw new Error(data.message || `Failed to ${newStatus} application`);
-      }
+      alert(`Application ${newStatus} successfully!`);
     } catch (err) {
       console.error(`Error ${newStatus}ing application:`, err);
       alert(`Error: ${err.message}`);
@@ -121,8 +158,19 @@ const ApplicationDetails = () => {
     });
   };
 
+  // Setup data service subscription and initial load
   useEffect(() => {
     fetchApplicationDetails();
+    
+    // Subscribe to data changes for live updates
+    const unsubscribe = dataService.subscribe((changeType, data, cache) => {
+      console.log('ApplicationDetails received data change:', changeType);
+      if (changeType === 'application_status_updated' || changeType === 'application_deleted') {
+        fetchApplicationDetails();
+      }
+    });
+    
+    return () => unsubscribe();
   }, [id]);
 
   return (
@@ -179,15 +227,21 @@ const ApplicationDetails = () => {
               </div>
               <div className="col-md-6">
                 <label className="form-label fw-bold">Full Name</label>
-                <p className="form-control-plaintext">{application.name}</p>
+                <p className="form-control-plaintext">
+                  {getUserDetails(application)?.name || 'Unknown User'}
+                </p>
               </div>
               <div className="col-md-6">
                 <label className="form-label fw-bold">Email Address</label>
-                <p className="form-control-plaintext">{application.email}</p>
+                <p className="form-control-plaintext">
+                  {getUserDetails(application)?.email || 'unknown@example.com'}
+                </p>
               </div>
               <div className="col-md-6">
                 <label className="form-label fw-bold">Phone Number</label>
-                <p className="form-control-plaintext">{application.phone}</p>
+                <p className="form-control-plaintext">
+                  {getUserDetails(application)?.phone || 'N/A'}
+                </p>
               </div>
               <div className="col-md-6">
                 <label className="form-label fw-bold">National ID</label>
@@ -203,7 +257,9 @@ const ApplicationDetails = () => {
               </div>
               <div className="col-md-6">
                 <label className="form-label fw-bold">Project Name</label>
-                <p className="form-control-plaintext">{application.projectName}</p>
+                <p className="form-control-plaintext">
+                  {getProjectDetails(application.projectId)?.name || application.projectName || 'Unknown Project'}
+                </p>
               </div>
               <div className="col-md-6">
                 <label className="form-label fw-bold">Application Status</label>
@@ -219,11 +275,15 @@ const ApplicationDetails = () => {
               </div>
               <div className="col-md-6">
                 <label className="form-label fw-bold">Monthly Income</label>
-                <p className="form-control-plaintext">{application.income} EGP</p>
+                <p className="form-control-plaintext">
+                  {application.income || application.applicationData?.income || 'N/A'} EGP
+                </p>
               </div>
               <div className="col-md-6">
                 <label className="form-label fw-bold">Family Size</label>
-                <p className="form-control-plaintext">{application.familySize} members</p>
+                <p className="form-control-plaintext">
+                  {application.familySize || application.applicationData?.familySize || 'N/A'} members
+                </p>
               </div>
 
               {/* Housing Information */}
@@ -235,7 +295,76 @@ const ApplicationDetails = () => {
               </div>
               <div className="col-12">
                 <label className="form-label fw-bold">Current Housing Details</label>
-                <p className="form-control-plaintext">{application.currentHousing}</p>
+                <p className="form-control-plaintext">
+                  {application.currentHousing || application.applicationData?.currentHousing || 'N/A'}
+                </p>
+              </div>
+
+              {/* Application Preferences */}
+              <div className="col-12">
+                <h5 className="mb-3 mt-4">
+                  <i className="bi bi-gear me-2"></i>
+                  Application Preferences
+                </h5>
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-bold">Requested Unit Type</label>
+                <p className="form-control-plaintext">
+                  {application.applicationData?.requestedUnitType || 'N/A'}
+                </p>
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-bold">Preferred Floor</label>
+                <p className="form-control-plaintext">
+                  {application.applicationData?.preferredFloor || 'N/A'}
+                </p>
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-bold">Payment Method</label>
+                <p className="form-control-plaintext">
+                  {application.applicationData?.paymentMethod || 'N/A'}
+                </p>
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-bold">Special Requirements</label>
+                <p className="form-control-plaintext">
+                  {application.applicationData?.specialRequirements || 'None'}
+                </p>
+              </div>
+
+              {/* Documents Section */}
+              <div className="col-12">
+                <h5 className="mb-3 mt-4">
+                  <i className="bi bi-file-earmark-text me-2"></i>
+                  Submitted Documents
+                </h5>
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-bold">National ID Copy</label>
+                <p className="form-control-plaintext">
+                  {application.documents?.nationalIdCopy || 'Not uploaded'}
+                </p>
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-bold">Income Certificate</label>
+                <p className="form-control-plaintext">
+                  {application.documents?.incomeCertificate || 'Not uploaded'}
+                </p>
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-bold">Birth Certificate</label>
+                <p className="form-control-plaintext">
+                  {application.documents?.birthCertificate || 'Not uploaded'}
+                </p>
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-bold">Other Documents</label>
+                <p className="form-control-plaintext">
+                  {application.documents?.otherDocuments?.length > 0 
+                    ? `${application.documents.otherDocuments.length} files uploaded`
+                    : 'None'
+                  }
+                </p>
               </div>
 
               {/* Submission Information */}
@@ -247,7 +376,7 @@ const ApplicationDetails = () => {
               </div>
               <div className="col-md-6">
                 <label className="form-label fw-bold">Submitted On</label>
-                <p className="form-control-plaintext">{formatDate(application.createdAt)}</p>
+                <p className="form-control-plaintext">{formatDate(application.submittedAt || application.createdAt)}</p>
               </div>
 
               {/* Review Information (if not pending) */}

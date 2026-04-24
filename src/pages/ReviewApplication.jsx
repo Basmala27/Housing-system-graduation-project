@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import dataService from '../services/dataService';
 
 const ReviewApplication = () => {
   const { id } = useParams();
@@ -450,8 +451,144 @@ const ReviewApplication = () => {
             </div>
           </div>
 
+          {/* Supporting Documents */}
+          <div className="row mt-4">
+            <div className="col-12">
+              <div className="card">
+                <div className="card-header bg-light">
+                  <h5 className="mb-0">
+                    <i className="bi bi-file-earmark-text me-2"></i>
+                    Supporting Documents
+                  </h5>
+                </div>
+                <div className="card-body">
+                  <div className="row">
+                    <div className="col-md-4 mb-3">
+                      <div className="d-flex align-items-center">
+                        <i className="bi bi-file-earmark-pdf text-danger me-2" style={{ fontSize: '1.5rem' }}></i>
+                        <div>
+                          <strong>National ID Copy</strong>
+                          <br />
+                          {application.documents?.nationalIdCopy ? (
+                            application.documents.nationalIdCopy.startsWith('http') || application.documents.nationalIdCopy.startsWith('/uploads/') ? (
+                              <a 
+                                href={`http://localhost:5000${application.documents.nationalIdCopy}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="btn btn-sm btn-outline-primary mt-1"
+                              >
+                                <i className="bi bi-eye me-1"></i>
+                                View Document
+                              </a>
+                            ) : (
+                              <span className="badge bg-success mt-1">
+                                <i className="bi bi-check-circle me-1"></i>
+                                Uploaded
+                              </span>
+                            )
+                          ) : (
+                            <span className="badge bg-secondary mt-1">Not Uploaded</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-md-4 mb-3">
+                      <div className="d-flex align-items-center">
+                        <i className="bi bi-file-earmark-pdf text-danger me-2" style={{ fontSize: '1.5rem' }}></i>
+                        <div>
+                          <strong>Income Certificate</strong>
+                          <br />
+                          {application.documents?.incomeCertificate ? (
+                            application.documents.incomeCertificate.startsWith('http') || application.documents.incomeCertificate.startsWith('/uploads/') ? (
+                              <a 
+                                href={`http://localhost:5000${application.documents.incomeCertificate}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="btn btn-sm btn-outline-primary mt-1"
+                              >
+                                <i className="bi bi-eye me-1"></i>
+                                View Document
+                              </a>
+                            ) : (
+                              <span className="badge bg-success mt-1">
+                                <i className="bi bi-check-circle me-1"></i>
+                                Uploaded
+                              </span>
+                            )
+                          ) : (
+                            <span className="badge bg-secondary mt-1">Not Uploaded</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-md-4 mb-3">
+                      <div className="d-flex align-items-center">
+                        <i className="bi bi-file-earmark-pdf text-danger me-2" style={{ fontSize: '1.5rem' }}></i>
+                        <div>
+                          <strong>Birth Certificate</strong>
+                          <br />
+                          {application.documents?.birthCertificate ? (
+                            application.documents.birthCertificate.startsWith('http') || application.documents.birthCertificate.startsWith('/uploads/') ? (
+                              <a 
+                                href={`http://localhost:5000${application.documents.birthCertificate}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="btn btn-sm btn-outline-primary mt-1"
+                              >
+                                <i className="bi bi-eye me-1"></i>
+                                View Document
+                              </a>
+                            ) : (
+                              <span className="badge bg-success mt-1">
+                                <i className="bi bi-check-circle me-1"></i>
+                                Uploaded
+                              </span>
+                            )
+                          ) : (
+                            <span className="badge bg-secondary mt-1">Not Uploaded</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Other Documents */}
+                  {application.documents?.otherDocuments && application.documents.otherDocuments.length > 0 && (
+                    <div className="row mt-3">
+                      <div className="col-12">
+                        <h6 className="mb-3">Other Documents</h6>
+                        <div className="d-flex flex-wrap gap-2">
+                          {application.documents.otherDocuments.map((doc, index) => (
+                            <div key={index} className="border rounded p-2 bg-light">
+                              <small className="text-muted">
+                                {doc.originalName || `Document ${index + 1}`}
+                              </small>
+                              {doc.url && (
+                                <div className="mt-1">
+                                  <a 
+                                    href={`http://localhost:5000${doc.url}`} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="btn btn-sm btn-outline-primary"
+                                  >
+                                    <i className="bi bi-eye me-1"></i>
+                                    View
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Action Buttons */}
-          <div className="row">
+          <div className="row mt-4">
             <div className="col-12">
               <div className="card">
                 <div className="card-header bg-light">

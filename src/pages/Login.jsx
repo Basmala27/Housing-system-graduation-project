@@ -1,30 +1,61 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { Alert } from 'react-bootstrap';
+import { logUserAction } from '../utils/auditLogger';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     
-    // Simulate login process
-    setTimeout(() => {
-      // In a real app, this would authenticate with backend
-      const userData = {
-        email: email,
-        name: 'Admin User',
-        role: 'admin'
-      };
-      login(userData);
-      navigate('/dashboard');
+    try {
+      // Check localStorage for existing users first
+      const savedUsers = localStorage.getItem('housingUsers');
+      let users = [];
+      if (savedUsers) {
+        users = JSON.parse(savedUsers);
+      }
+
+      // Add default admin user if no users exist
+      if (users.length === 0) {
+        users = [
+          { email: 'admin@gov.eg', password: 'admin123', name: 'Admin User', role: 'admin' }
+        ];
+        localStorage.setItem('housingUsers', JSON.stringify(users));
+      }
+
+      // Find user by email
+      const user = users.find(u => u.email === email && u.password === password);
+
+      if (user) {
+        // Create mock token
+        const token = btoa(JSON.stringify({ email, timestamp: Date.now() }));
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        
+        // Log real audit entry for login
+        logUserAction(user._id || 'unknown', user.name, 'login', user.name);
+        
+        login(user, token);
+        navigate('/dashboard');
+      } else {
+        setError('Invalid email or password');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Login error. Please try again.');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -86,6 +117,14 @@ const Login = () => {
                       Please sign in to your admin account
                     </p>
                   </div>
+
+                  {/* Error Display */}
+                  {error && (
+                    <Alert variant="danger" className="mb-3" style={{ borderRadius: '8px' }}>
+                      <i className="bi bi-exclamation-triangle me-2"></i>
+                      {error}
+                    </Alert>
+                  )}
 
                   {/* Login Form */}
                   <form onSubmit={handleLogin}>
@@ -155,6 +194,18 @@ const Login = () => {
                         <i className="bi bi-key me-2"></i>
                         Use Demo
                       </button>
+                    </div>
+
+                    {/* Additional Links */}
+                    <div className="text-center mb-3">
+                      <Link to="/forgot-password" className="text-primary text-decoration-none me-3">
+                        <i className="bi bi-question-circle me-1"></i>
+                        Forgot Password?
+                      </Link>
+                      <Link to="/register" className="text-primary text-decoration-none">
+                        <i className="bi bi-person-plus me-1"></i>
+                        Create Account
+                      </Link>
                     </div>
                   </form>
 

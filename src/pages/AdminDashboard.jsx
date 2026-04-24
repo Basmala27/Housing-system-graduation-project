@@ -1,239 +1,117 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import dataService from '../services/dataService';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedApplication, setSelectedApplication] = useState(null);
-  const [updatingId, setUpdatingId] = useState(null);
-
-  // Load applications from localStorage
-  const loadApplicationsFromStorage = () => {
-    try {
-      const saved = localStorage.getItem('housingApplications');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        console.log('📥 Dashboard loaded applications from localStorage:', parsed.length);
-        return parsed;
-      }
-    } catch (err) {
-      console.error('❌ Failed to load applications from localStorage:', err);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [dashboardData, setDashboardData] = useState({
+    users: [],
+    projects: [],
+    applications: [],
+    enrichedApplications: [],
+    stats: {
+      totalUsers: 0,
+      totalProjects: 0,
+      totalApplications: 0,
+      pendingApplications: 0,
+      approvedApplications: 0,
+      rejectedApplications: 0,
+      approvalRate: 0,
+      activeProjects: 0,
+      planningProjects: 0
     }
-    return null;
-  };
+  });
 
-  // Fetch applications from backend
-  const fetchApplications = async () => {
-    setLoading(true);
-    setError(null);
-    
-    // Try to load from localStorage first
-    const savedApplications = loadApplicationsFromStorage();
-    if (savedApplications && savedApplications.length > 0) {
-      console.log('📥 Dashboard using saved applications from localStorage');
-      setApplications(savedApplications);
+  // Load dashboard data
+  const loadDashboardData = () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log('Loading dashboard data...');
+      
+      const users = dataService.getUsers();
+      const projects = dataService.getProjects();
+      const applications = dataService.getEnrichedApplications();
+      const stats = dataService.getApplicationStats();
+
+      console.log('Dashboard data loaded:', {
+        users: users.length,
+        projects: projects.length,
+        applications: applications.length,
+        stats
+      });
+
+      // Calculate project stats
+      const activeProjects = projects.filter(p => p.status === 'active').length;
+      const planningProjects = projects.filter(p => p.status === 'planning').length;
+
+      const dashboardInfo = {
+        users,
+        projects,
+        applications,
+        enrichedApplications: applications,
+        stats: {
+          ...stats,
+          totalUsers: users.length,
+          totalProjects: projects.length,
+          activeProjects,
+          planningProjects
+        }
+      };
+
+      console.log('Setting dashboard data:', dashboardInfo);
+      setDashboardData(dashboardInfo);
+      setLastUpdate(new Date());
+    } catch (err) {
+      console.error('Error loading dashboard data:', err);
+      setError('Failed to load dashboard data');
+    } finally {
       setLoading(false);
-      return;
-    }
-    
-    // Always use fallback data to guarantee it works
-    console.log('Dashboard loading fallback applications data...');
-    setApplications([
-      {
-        _id: 'fallback-1',
-        name: 'mahmoud el sayed ahmed',
-        email: 'mahmoud@gamil.com',
-        phone: '01289215667',
-        projectName: 'new cairo',
-        status: 'pending',
-        createdAt: new Date('2026-04-02T20:36:16.919Z'),
-        nationalId: '12345678955534',
-        familySize: 4,
-        income: 12000,
-        currentHousing: 'I live in Alexandria with my family',
-        documents: {
-          nationalIdCopy: 'uploaded',
-          incomeCertificate: 'uploaded',
-          birthCertificate: 'uploaded'
-        }
-      },
-      {
-        _id: 'fallback-2',
-        name: 'hisham ashraf',
-        email: 'final@test.com',
-        phone: '01000000000',
-        projectName: 'new alamien',
-        status: 'pending',
-        createdAt: new Date('2026-04-02T20:26:21.093Z'),
-        nationalId: '12345678901234',
-        familySize: 3,
-        income: 5000,
-        currentHousing: 'I live in Alexandria with my family',
-        documents: {
-          nationalIdCopy: 'uploaded',
-          incomeCertificate: 'uploaded',
-          birthCertificate: 'uploaded'
-        }
-      },
-      {
-        _id: 'fallback-3',
-        name: 'Fatma Ali',
-        email: 'fatma@example.com',
-        phone: '01022222222',
-        projectName: 'Alexandria Coastal Towers',
-        status: 'approved',
-        createdAt: new Date('2026-04-02T20:22:00.446Z'),
-        nationalId: '22222222222222',
-        familySize: 3,
-        income: 12000,
-        currentHousing: 'Living with parents',
-        reviewedAt: new Date('2026-04-02T20:22:50.383Z'),
-        reviewedBy: 'Admin User',
-        documents: {
-          nationalIdCopy: 'uploaded',
-          incomeCertificate: 'uploaded',
-          birthCertificate: 'uploaded'
-        }
-      },
-      {
-        _id: 'fallback-4',
-        name: 'Hassan Omar',
-        email: 'hassan@example.com',
-        phone: '01033333333',
-        projectName: 'New Capital City Complex',
-        status: 'rejected',
-        createdAt: new Date('2026-04-02T20:21:38.192Z'),
-        nationalId: '33333333333333',
-        familySize: 5,
-        income: 18000,
-        currentHousing: 'Shared accommodation',
-        rejectionReason: 'uploaded documents not completed',
-        reviewedAt: new Date('2026-04-02T20:23:14.525Z'),
-        reviewedBy: 'Admin User',
-        documents: {
-          nationalIdCopy: 'uploaded',
-          incomeCertificate: 'uploaded',
-          birthCertificate: 'uploaded'
-        }
-      },
-      {
-        _id: 'fallback-5',
-        name: 'Test User',
-        email: 'test@example.com',
-        phone: '01012345678',
-        projectName: 'Cairo Garden Residences',
-        status: 'pending',
-        createdAt: new Date('2026-04-02T20:06:31.867Z'),
-        nationalId: '11111111111111',
-        familySize: 4,
-        income: 15000,
-        currentHousing: 'Currently living in rented apartment in Cairo',
-        documents: {
-          nationalIdCopy: 'uploaded',
-          incomeCertificate: 'uploaded',
-          birthCertificate: 'uploaded'
-        }
-      }
-    ]);
-    setLoading(false);
-  };
-
-  // Fetch single application details
-  const fetchApplicationDetails = async (applicationId) => {
-    setSelectedApplication({
-      _id: applicationId,
-      name: 'Test User',
-      email: 'test@example.com',
-      phone: '01012345678',
-      projectName: 'Cairo Garden Residences',
-      status: 'pending',
-      createdAt: new Date('2026-04-02T20:06:31.867Z'),
-      nationalId: '11111111111111',
-      familySize: 4,
-      income: 15000,
-      currentHousing: 'Currently living in rented apartment in Cairo',
-      documents: {
-        nationalIdCopy: 'uploaded',
-        incomeCertificate: 'uploaded',
-        birthCertificate: 'uploaded'
-      }
-    });
-  };
-
-  // Save applications to localStorage
-  const saveApplicationsToStorage = (applications) => {
-    try {
-      localStorage.setItem('housingApplications', JSON.stringify(applications));
-      console.log('✅ Dashboard saved applications to localStorage:', applications.length);
-    } catch (err) {
-      console.error('❌ Failed to save applications to localStorage:', err);
     }
   };
 
-  // Update application status
-  const updateApplicationStatus = async (applicationId, newStatus, rejectionReason = null) => {
-    setUpdatingId(applicationId);
-    
-    const requestBody = {
-      status: newStatus,
-      reviewedBy: 'Admin User',
-      reviewedAt: new Date().toISOString()
-    };
-    
-    if (newStatus === 'rejected' && rejectionReason) {
-      requestBody.rejectionReason = rejectionReason;
-    }
-    
-    console.log('🔄 Dashboard updating application status:', applicationId, 'to:', newStatus);
-    
-    const updatedApplications = applications.map(app =>
-      app._id === applicationId
-        ? { ...app, ...requestBody }
-        : app
-    );
-    
-    setApplications(updatedApplications);
-    saveApplicationsToStorage(updatedApplications); // Save to localStorage
+  // Sort applications by submission date (latest first)
+  const sortedApplications = [...dashboardData.enrichedApplications].sort((a, b) => {
+    const dateA = new Date(a.submittedAt || a.createdAt);
+    const dateB = new Date(b.submittedAt || b.createdAt);
+    return dateB - dateA;
+  });
 
-    if (selectedApplication && selectedApplication._id === applicationId) {
-      setSelectedApplication(prev => ({ ...prev, ...requestBody }));
-    }
-    
-    console.log('✅ Dashboard application status updated and saved');
-    setUpdatingId(null);
-  };
+  // Get latest 5 applications
+  const recentApplications = sortedApplications.slice(0, 5);
 
-  const handleApprove = (applicationId) => {
-    updateApplicationStatus(applicationId, 'approved');
-  };
-
-  const handleReject = (applicationId) => {
-    const reason = prompt('Please enter rejection reason:');
-    if (reason) {
-      updateApplicationStatus(applicationId, 'rejected', reason);
-    }
-  };
-
-  // Fetch applications on component mount
+  
+  
+  // Setup data service subscription and initial load
   useEffect(() => {
-    fetchApplications();
+    loadDashboardData();
+    
+    // Subscribe to data changes for live updates
+    const unsubscribe = dataService.subscribe((changeType, data, cache) => {
+      console.log('Dashboard received data change:', changeType);
+      loadDashboardData();
+    });
+    
+    // Set up auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      loadDashboardData();
+    }, 30000);
+    
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   }, []);
 
-  const getStatusBadge = (status) => {
-    const badgeClass = {
-      pending: 'bg-warning',
-      approved: 'bg-success',
-      rejected: 'bg-danger'
-    }[status] || 'bg-secondary';
-
-    return <span className={`badge ${badgeClass}`}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>;
-  };
-
+  // Format date
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -242,304 +120,448 @@ const AdminDashboard = () => {
     });
   };
 
-  return (
-    <div className="admin-dashboard">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h1 className="mb-1">Findoor Admin Dashboard</h1>
-          <p className="text-muted mb-0">
-            {loading ? 'Loading...' : `Showing ${applications.length} applications`}
-            {error && <span className="text-warning ms-2">(Connection issue)</span>}
-          </p>
-        </div>
-        <button className="btn btn-primary" onClick={fetchApplications}>
-          <i className="bi bi-arrow-clockwise me-2"></i>
-          Refresh
-        </button>
-      </div>
+  // Get status badge class
+  const getStatusBadgeClass = (status) => {
+    switch (status) {
+      case 'approved': return 'bg-success';
+      case 'rejected': return 'bg-danger';
+      case 'pending': return 'bg-warning';
+      default: return 'bg-secondary';
+    }
+  };
 
-      {/* Error Message */}
-      {error && (
-        <div className="alert alert-danger d-flex align-items-center mb-4">
-          <i className="bi bi-exclamation-triangle me-2"></i>
-          <div>
-            <strong>Error:</strong> {error}
-            <div className="small mt-1">
-              Please ensure backend is running on <code>http://localhost:5000</code>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Loading State */}
-      {loading && (
-        <div className="text-center py-5">
+  if (loading) {
+    return (
+      <div className="container mt-4">
+        <div className="text-center">
           <div className="spinner-border text-primary" role="status">
             <span className="visually-hidden">Loading...</span>
           </div>
-          <div className="mt-2 text-muted">Loading applications...</div>
+          <p className="mt-2 text-muted">Loading dashboard with live data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mt-4">
+        <div className="alert alert-danger">
+          <h4><i className="bi bi-exclamation-triangle me-2"></i>Error Loading Dashboard</h4>
+          <p>{error}</p>
+          <button className="btn btn-primary" onClick={loadDashboardData}>
+            <i className="bi bi-arrow-clockwise me-2"></i>Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container-fluid mt-4 px-3 px-lg-4">
+      {/* Header */}
+      <div className="row mb-4">
+        <div className="col-12">
+          <div className="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4">
+            <div className="mb-2 mb-md-0">
+              <h1 className="h3 h2 mb-0">
+                <i className="bi bi-speedometer2 text-primary me-2"></i>
+                Admin Dashboard
+              </h1>
+              <div className="d-flex flex-column flex-md-row align-items-center gap-2">
+                <small className="text-muted">
+                  <i className="bi bi-clock me-1"></i>
+                  Last updated: {lastUpdate.toLocaleTimeString()}
+                </small>
+                <small className="text-success">
+                  <i className="bi bi-database-fill me-1"></i>
+                  Live data from data.json
+                </small>
+                <div className="d-flex gap-2 mt-2">
+                  <button 
+                    className="btn btn-outline-secondary btn-sm" 
+                    onClick={loadDashboardData}
+                    disabled={loading}
+                    type="button"
+                  >
+                    <i className="bi bi-arrow-clockwise me-1"></i>
+                    {loading ? 'Refreshing...' : 'Refresh'}
+                  </button>
+                  <Link to="/applications/new" className="btn btn-primary btn-sm">
+                    <i className="bi bi-plus-circle me-2"></i>
+                    Add Application
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Statistics Cards */}
+      <div className="row mb-4">
+        <div className="col-lg-3 col-md-6 mb-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                  <i className="bi bi-people text-primary fs-4"></i>
+                </div>
+                <div>
+                  <h6 className="text-muted mb-1">Total Users</h6>
+                  <h3 className="mb-0 fw-bold">
+                    {dashboardData.stats?.totalUsers || dashboardData.users?.length || 0}
+                  </h3>
+                  <small className="text-muted">Registered citizens</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-lg-3 col-md-6 mb-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="bg-info bg-opacity-10 rounded-circle p-3 me-3">
+                  <i className="bi bi-building text-info fs-4"></i>
+                </div>
+                <div>
+                  <h6 className="text-muted mb-1">Total Projects</h6>
+                  <h3 className="mb-0 fw-bold">
+                    {dashboardData.stats?.totalProjects || dashboardData.projects?.length || 0}
+                  </h3>
+                  <small className="text-muted">Housing projects</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-lg-3 col-md-6 mb-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="bg-secondary bg-opacity-10 rounded-circle p-3 me-3">
+                  <i className="bi bi-file-earmark-text text-secondary fs-4"></i>
+                </div>
+                <div>
+                  <h6 className="text-muted mb-1">Total Applications</h6>
+                  <h3 className="mb-0 fw-bold">
+                    {dashboardData.stats?.totalApplications || dashboardData.applications?.length || 0}
+                  </h3>
+                  <small className="text-muted">All applications</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-lg-3 col-md-6 mb-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="bg-success bg-opacity-10 rounded-circle p-3 me-3">
+                  <i className="bi bi-check-circle text-success fs-4"></i>
+                </div>
+                <div>
+                  <h6 className="text-muted mb-1">Approved</h6>
+                  <h3 className="mb-0 fw-bold">
+                    {dashboardData.stats?.approvedApplications || 0}
+                  </h3>
+                  <small className="text-muted">Successful applications</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Secondary Statistics */}
+      <div className="row mb-4">
+        <div className="col-lg-3 col-md-6 mb-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="bg-warning bg-opacity-10 rounded-circle p-3 me-3">
+                  <i className="bi bi-clock text-warning fs-4"></i>
+                </div>
+                <div>
+                  <h6 className="text-muted mb-1">Pending</h6>
+                  <h3 className="mb-0 fw-bold">
+                    {dashboardData.stats?.pendingApplications || 0}
+                  </h3>
+                  <small className="text-muted">Awaiting review</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-lg-3 col-md-6 mb-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="bg-danger bg-opacity-10 rounded-circle p-3 me-3">
+                  <i className="bi bi-x-circle text-danger fs-4"></i>
+                </div>
+                <div>
+                  <h6 className="text-muted mb-1">Rejected</h6>
+                  <h3 className="mb-0 fw-bold">
+                    {dashboardData.stats?.rejectedApplications || 0}
+                  </h3>
+                  <small className="text-muted">Not eligible</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-lg-3 col-md-6 mb-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="bg-info bg-opacity-10 rounded-circle p-3 me-3">
+                  <i className="bi bi-graph-up text-info fs-4"></i>
+                </div>
+                <div className="flex-grow-1">
+                  <h6 className="text-muted mb-1">Approval Rate</h6>
+                  <h3 className="mb-0 fw-bold text-info">
+                    {dashboardData.stats?.approvalRate || 0}%
+                  </h3>
+                  <small className="text-muted">Success rate</small>
+                  <div className="progress mt-2" style={{ height: '8px' }}>
+                    <div 
+                      className="progress-bar bg-info" 
+                      style={{ width: `${dashboardData.stats?.approvalRate || 0}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-lg-3 col-md-6 mb-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                  <i className="bi bi-activity text-primary fs-4"></i>
+                </div>
+                <div>
+                  <h6 className="text-muted mb-1">Processing Status</h6>
+                  <h3 className="mb-0 fw-bold text-primary">
+                    {(dashboardData.stats?.pendingApplications || 0) > 0 ? 'Active' : 'Clear'}
+                  </h3>
+                  <small className="text-muted">
+                    {dashboardData.stats?.pendingApplications || 0} pending review
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Project Status Summary */}
+      <div className="row mb-4">
+        <div className="col-lg-6 mb-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-header bg-white border-0">
+              <h5 className="mb-0">
+                <i className="bi bi-building text-primary me-2"></i>
+                Project Status Summary
+              </h5>
+            </div>
+            <div className="card-body">
+              <div className="row text-center">
+                <div className="col-6">
+                  <div className="bg-success bg-opacity-10 rounded p-3">
+                    <h3 className="text-success mb-1">{dashboardData.stats.activeProjects}</h3>
+                    <small className="text-muted">Active Projects</small>
+                  </div>
+                </div>
+                <div className="col-6">
+                  <div className="bg-warning bg-opacity-10 rounded p-3">
+                    <h3 className="text-warning mb-1">{dashboardData.stats.planningProjects}</h3>
+                    <small className="text-muted">Planning Phase</small>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <small className="text-muted">Project Completion</small>
+                  <small className="text-muted fw-bold">
+                    {dashboardData.stats.totalProjects > 0 ? 
+                      Math.round((dashboardData.stats.activeProjects / dashboardData.stats.totalProjects) * 100) : 0}%
+                  </small>
+                </div>
+                <div className="progress" style={{ height: '8px' }}>
+                  <div 
+                    className="progress-bar bg-success" 
+                    style={{ width: `${dashboardData.stats.totalProjects > 0 ? 
+                      (dashboardData.stats.activeProjects / dashboardData.stats.totalProjects) * 100 : 0}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* User Statistics */}
+        <div className="col-lg-6 mb-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-header bg-white border-0">
+              <h5 className="mb-0">
+                <i className="bi bi-people text-primary me-2"></i>
+                User Statistics
+              </h5>
+            </div>
+            <div className="card-body">
+              <div className="row text-center">
+                <div className="col-6">
+                  <div className="bg-primary bg-opacity-10 rounded p-3">
+                    <h3 className="text-primary mb-1">{dashboardData.stats.totalUsers}</h3>
+                    <small className="text-muted">Total Users</small>
+                  </div>
+                </div>
+                <div className="col-6">
+                  <div className="bg-info bg-opacity-10 rounded p-3">
+                    <h3 className="text-info mb-1">
+                      {dashboardData.stats.totalUsers > 0 ? 
+                        Math.round((dashboardData.stats.approvedApplications / dashboardData.stats.totalUsers) * 100) : 0}%
+                    </h3>
+                    <small className="text-muted">Application Rate</small>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <small className="text-muted">Admin Users</small>
+                  <small className="text-muted fw-bold">
+                    {dashboardData.users.filter(u => u.role === 'admin').length}
+                  </small>
+                </div>
+                <div className="d-flex justify-content-between align-items-center">
+                  <small className="text-muted">Citizen Users</small>
+                  <small className="text-muted fw-bold">
+                    {dashboardData.users.filter(u => u.role === 'citizen').length}
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Pending Applications Alert */}
+      {(dashboardData.stats?.pendingApplications || 0) > 0 && (
+        <div className="row mb-4">
+          <div className="col-12">
+            <div className="alert alert-warning border-0 shadow-sm d-flex align-items-center" role="alert">
+              <i className="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+              <div className="flex-grow-1">
+                <h6 className="alert-heading mb-1"> Action Required</h6>
+                <p className="mb-0">
+                  <strong>{dashboardData.stats?.pendingApplications || 0}</strong> application{(dashboardData.stats?.pendingApplications || 0) > 1 ? 's' : ''} need{(dashboardData.stats?.pendingApplications || 0) > 1 ? '' : 's'} review.
+                  <Link to="/applications" className="alert-link ms-1">Review now</Link> to maintain efficiency.
+                </p>
+              </div>
+              <div className="d-flex gap-2">
+                <Link to="/applications?filter=pending" className="btn btn-warning btn-sm">
+                  <i className="bi bi-list-check me-1"></i>
+                  View Pending
+                </Link>
+                <Link to="/applications" className="btn btn-outline-warning btn-sm">
+                  <i className="bi bi-arrow-right me-1"></i>
+                  All Applications
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Applications Table */}
-      {!loading && !error && (
-        <>
-          {/* Housing Statistics Overview */}
-          <div className="row mb-4">
-            <div className="col-lg-3 col-md-6 mb-3">
-              <div className="card border-0 shadow-sm h-100">
-                <div className="card-body">
-                  <div className="d-flex align-items-center">
-                    <div className="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
-                      <i className="bi bi-house-door text-primary fs-4"></i>
-                    </div>
-                    <div>
-                      <h6 className="text-muted mb-1">Total Applications</h6>
-                      <h3 className="mb-0 fw-bold">{applications.length}</h3>
-                      <small className="text-success">
-                        <i className="bi bi-arrow-up"></i> 12% from last month
-                      </small>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="col-lg-3 col-md-6 mb-3">
-              <div className="card border-0 shadow-sm h-100">
-                <div className="card-body">
-                  <div className="d-flex align-items-center">
-                    <div className="bg-warning bg-opacity-10 rounded-circle p-3 me-3">
-                      <i className="bi bi-clock-history text-warning fs-4"></i>
-                    </div>
-                    <div>
-                      <h6 className="text-muted mb-1">Pending Review</h6>
-                      <h3 className="mb-0 fw-bold">{applications.filter(app => app.status === 'pending').length}</h3>
-                      <small className="text-muted">Awaiting approval</small>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="col-lg-3 col-md-6 mb-3">
-              <div className="card border-0 shadow-sm h-100">
-                <div className="card-body">
-                  <div className="d-flex align-items-center">
-                    <div className="bg-success bg-opacity-10 rounded-circle p-3 me-3">
-                      <i className="bi bi-check-circle text-success fs-4"></i>
-                    </div>
-                    <div>
-                      <h6 className="text-muted mb-1">Approved</h6>
-                      <h3 className="mb-0 fw-bold">{applications.filter(app => app.status === 'approved').length}</h3>
-                      <small className="text-success">Ready for housing</small>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="col-lg-3 col-md-6 mb-3">
-              <div className="card border-0 shadow-sm h-100">
-                <div className="card-body">
-                  <div className="d-flex align-items-center">
-                    <div className="bg-danger bg-opacity-10 rounded-circle p-3 me-3">
-                      <i className="bi bi-x-circle text-danger fs-4"></i>
-                    </div>
-                    <div>
-                      <h6 className="text-muted mb-1">Rejected</h6>
-                      <h3 className="mb-0 fw-bold">{applications.filter(app => app.status === 'rejected').length}</h3>
-                      <small className="text-muted">Not eligible</small>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Actions & Recent Activity */}
-          <div className="row mb-4">
-            <div className="col-lg-8 mb-3">
-              <div className="card border-0 shadow-sm">
-                <div className="card-header bg-white border-0">
-                  <h5 className="mb-0">
-                    <i className="bi bi-lightning text-primary me-2"></i>
-                    Quick Actions
-                  </h5>
-                </div>
-                <div className="card-body">
-                  <div className="row g-3">
-                    <div className="col-md-6">
-                      <button 
-                        className="btn btn-primary w-100 h-100 d-flex align-items-center justify-content-center p-3"
-                        style={{ 
-                          cursor: 'pointer',
-                          zIndex: 1000,
-                          pointerEvents: 'auto',
-                          position: 'relative'
-                        }}
-                        onClick={() => {
-                          console.log('🔥 New Application button clicked!');
-                          navigate('/applications/new');
-                        }}
-                      >
-                        <i className="bi bi-plus-circle me-2"></i>
-                        <div className="text-start">
-                          <div className="fw-bold">New Application</div>
-                          <small className="opacity-75">Add housing application</small>
-                        </div>
-                      </button>
-                    </div>
-                    <div className="col-md-6">
-                      <button 
-                        className="btn btn-outline-success w-100 h-100 d-flex align-items-center justify-content-center p-3"
-                        style={{ 
-                          cursor: 'pointer',
-                          zIndex: 1000,
-                          pointerEvents: 'auto',
-                          position: 'relative'
-                        }}
-                        onClick={() => {
-                          console.log('🔥 Generate Report button clicked!');
-                          navigate('/reports');
-                        }}
-                      >
-                        <i className="bi bi-file-earmark-text me-2"></i>
-                        <div className="text-start">
-                          <div className="fw-bold">Generate Report</div>
-                          <small className="opacity-75">Export application data</small>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="col-lg-4 mb-3">
-              <div className="card border-0 shadow-sm h-100">
-                <div className="card-header bg-white border-0">
-                  <h5 className="mb-0">
-                    <i className="bi bi-graph-up text-success me-2"></i>
-                    Application Trends
-                  </h5>
-                </div>
-                <div className="card-body">
-                  <div className="mb-3">
-                    <div className="d-flex justify-content-between mb-1">
-                      <small className="text-muted">This Week</small>
-                      <small className="text-success fw-bold">+24%</small>
-                    </div>
-                    <div className="progress" style={{height: '8px'}}>
-                      <div className="progress-bar bg-success" style={{width: '75%'}}></div>
-                    </div>
-                  </div>
-                  <div className="mb-3">
-                    <div className="d-flex justify-content-between mb-1">
-                      <small className="text-muted">Approval Rate</small>
-                      <small className="text-primary fw-bold">68%</small>
-                    </div>
-                    <div className="progress" style={{height: '8px'}}>
-                      <div className="progress-bar bg-primary" style={{width: '68%'}}></div>
-                    </div>
-                  </div>
-                  <div className="mb-3">
-                    <div className="d-flex justify-content-between mb-1">
-                      <small className="text-muted">Avg Processing Time</small>
-                      <small className="text-warning fw-bold">3.2 days</small>
-                    </div>
-                    <div className="progress" style={{height: '8px'}}>
-                      <div className="progress-bar bg-warning" style={{width: '45%'}}></div>
-                    </div>
-                  </div>
-                  <div className="text-center mt-3">
-                    <small className="text-muted">
-                      <i className="bi bi-info-circle me-1"></i>
-                      Updated in real-time
-                    </small>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Applications Table */}
+      {/* Recent Applications Table */}
+      <div className="row mb-4">
+        <div className="col-12">
           <div className="card border-0 shadow-sm">
-            <div className="card-body p-0">
-              {applications.length === 0 ? (
-                <div className="text-center py-5">
-                  <i className="bi bi-inbox text-muted" style={{ fontSize: '3rem' }}></i>
-                  <h5 className="text-muted mt-3">No applications found</h5>
-                  <p className="text-muted">
-                    Applications will appear here once submitted
-                  </p>
+            <div className="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">
+                <i className="bi bi-clock-history text-primary me-2"></i>
+                Recent Applications (Latest 5)
+              </h5>
+              <Link to="/applications" className="btn btn-outline-primary btn-sm">
+                <i className="bi bi-list me-1"></i>
+                View All
+              </Link>
+            </div>
+            <div className="card-body">
+              {recentApplications.length === 0 ? (
+                <div className="text-center py-4">
+                  <i className="bi bi-inbox text-muted fs-1"></i>
+                  <p className="text-muted mt-2">No applications found</p>
+                  <Link to="/applications/new" className="btn btn-primary">
+                    Add First Application
+                  </Link>
                 </div>
               ) : (
                 <div className="table-responsive">
-                  <table className="table table-hover mb-0">
-                    <thead className="table-light">
+                  <table className="table table-hover">
+                    <thead>
                       <tr>
                         <th>ID</th>
                         <th>Applicant Name</th>
                         <th>Project</th>
                         <th>Status</th>
-                        <th>Submitted</th>
+                        <th>Submitted Date</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {applications.map((application) => (
-                        <tr key={application._id}>
+                      {recentApplications.map((application) => (
+                        <tr key={application.id}>
                           <td>
-                            <span className="text-muted">#{application._id.toString().slice(-8)}</span>
+                            <small className="text-muted font-monospace">
+                              #{application.id?.toString().slice(-6) || 'N/A'}
+                            </small>
                           </td>
-                          <td>
-                            <div className="fw-semibold">{application.name}</div>
-                            <small className="text-muted">{application.email}</small>
-                          </td>
-                          <td>{application.projectName}</td>
-                          <td>{getStatusBadge(application.status)}</td>
-                          <td>
-                            <small className="text-muted">{formatDate(application.createdAt)}</small>
-                          </td>
-                          <td>
-                            <div className="btn-group" role="group">
-                              <button
-                                className="btn btn-sm btn-outline-primary"
-                                onClick={() => fetchApplicationDetails(application._id)}
-                              >
-                                <i className="bi bi-eye"></i> View
-                              </button>
-                              {application.status === 'pending' && (
-                                <>
-                                  <button
-                                    className="btn btn-sm btn-outline-success"
-                                    onClick={() => handleApprove(application._id)}
-                                    disabled={updatingId === application._id}
-                                  >
-                                    {updatingId === application._id ? (
-                                      <span className="spinner-border spinner-border-sm me-1"></span>
-                                    ) : (
-                                      <i className="bi bi-check-circle"></i>
-                                    )}
-                                    Approve
-                                  </button>
-                                  <button
-                                    className="btn btn-sm btn-outline-danger"
-                                    onClick={() => handleReject(application._id)}
-                                    disabled={updatingId === application._id}
-                                  >
-                                    {updatingId === application._id ? (
-                                      <span className="spinner-border spinner-border-sm me-1"></span>
-                                    ) : (
-                                      <i className="bi bi-x-circle"></i>
-                                    )}
-                                    Reject
-                                  </button>
-                                </>
-                              )}
+                          <td className="fw-medium">
+                            <div className="d-flex align-items-center">
+                              <div className="bg-primary bg-opacity-10 rounded-circle p-2 me-2">
+                                <i className="bi bi-person-fill text-primary"></i>
+                              </div>
+                              {application.applicantName || 'Unknown User'}
                             </div>
+                          </td>
+                          <td>
+                            <span className="badge bg-light text-dark">
+                              <i className="bi bi-building me-1"></i>
+                              {application.projectName || 'Unknown Project'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`badge ${getStatusBadgeClass(application.status)}`}>
+                              {application.status === 'approved' && ' Approved'}
+                              {application.status === 'rejected' && ' Rejected'}
+                              {application.status === 'pending' && ' Pending'}
+                              {application.status || ' Unknown'}
+                            </span>
+                          </td>
+                          <td>
+                            <small className="text-muted">
+                              {formatDate(application.submittedAt || application.createdAt)}
+                            </small>
+                          </td>
+                          <td>
+                            <Link 
+                              to={`/review/${application.id}`}
+                              className="btn btn-sm btn-outline-primary"
+                            >
+                              <i className="bi bi-eye me-1"></i>
+                              View
+                            </Link>
                           </td>
                         </tr>
                       ))}
@@ -549,132 +571,51 @@ const AdminDashboard = () => {
               )}
             </div>
           </div>
-        </>
-      )}
+        </div>
+      </div>
 
-      {/* Application Details Modal */}
-      {selectedApplication && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">
-                  <i className="bi bi-file-text me-2"></i>
-                  Application Details
-                </h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setSelectedApplication(null)}
-                ></button>
-              </div>
-              <div className="modal-body">
-                <div className="row g-3">
-                  <div className="col-md-6">
-                    <label className="form-label fw-bold">Applicant Name</label>
-                    <p className="form-control-plaintext">{selectedApplication.name}</p>
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label fw-bold">Email</label>
-                    <p className="form-control-plaintext">{selectedApplication.email}</p>
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label fw-bold">Phone</label>
-                    <p className="form-control-plaintext">{selectedApplication.phone}</p>
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label fw-bold">National ID</label>
-                    <p className="form-control-plaintext">{selectedApplication.nationalId}</p>
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label fw-bold">Project Name</label>
-                    <p className="form-control-plaintext">{selectedApplication.projectName}</p>
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label fw-bold">Status</label>
-                    <p>{getStatusBadge(selectedApplication.status)}</p>
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label fw-bold">Income</label>
-                    <p className="form-control-plaintext">{selectedApplication.income} EGP</p>
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label fw-bold">Family Size</label>
-                    <p className="form-control-plaintext">{selectedApplication.familySize} members</p>
-                  </div>
-                  <div className="col-12">
-                    <label className="form-label fw-bold">Current Housing</label>
-                    <p className="form-control-plaintext">{selectedApplication.currentHousing}</p>
-                  </div>
-                  {selectedApplication.status !== 'pending' && (
-                    <>
-                      <div className="col-md-6">
-                        <label className="form-label fw-bold">Reviewed By</label>
-                        <p className="form-control-plaintext">{selectedApplication.reviewedBy}</p>
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label fw-bold">Reviewed At</label>
-                        <p className="form-control-plaintext">{formatDate(selectedApplication.reviewedAt)}</p>
-                      </div>
-                      {selectedApplication.rejectionReason && (
-                        <div className="col-12">
-                          <label className="form-label fw-bold">Rejection Reason</label>
-                          <p className="form-control-plaintext text-danger">{selectedApplication.rejectionReason}</p>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setSelectedApplication(null)}
-                >
-                  Close
-                </button>
-                {selectedApplication.status === 'pending' && (
-                  <>
-                    <button
-                      type="button"
-                      className="btn btn-success"
-                      onClick={() => {
-                        handleApprove(selectedApplication._id);
-                        setSelectedApplication(null);
-                      }}
-                      disabled={updatingId === selectedApplication._id}
-                    >
-                      {updatingId === selectedApplication._id ? (
-                        <span className="spinner-border spinner-border-sm me-1"></span>
-                      ) : (
-                        <i className="bi bi-check-circle me-1"></i>
-                      )}
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-danger"
-                      onClick={() => {
-                        handleReject(selectedApplication._id);
-                        setSelectedApplication(null);
-                      }}
-                      disabled={updatingId === selectedApplication._id}
-                    >
-                      {updatingId === selectedApplication._id ? (
-                        <span className="spinner-border spinner-border-sm me-1"></span>
-                      ) : (
-                        <i className="bi bi-x-circle me-1"></i>
-                      )}
-                      Reject
-                    </button>
-                  </>
-                )}
-              </div>
+      {/* Quick Actions */}
+      <div className="row">
+        <div className="col-md-4">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body text-center">
+              <i className="bi bi-plus-circle text-primary fs-1 mb-3"></i>
+              <h5 className="card-title">Add New Application</h5>
+              <p className="card-text text-muted">Create a new housing application</p>
+              <Link to="/applications/new" className="btn btn-primary">
+                <i className="bi bi-plus me-1"></i>
+                Create Application
+              </Link>
             </div>
           </div>
         </div>
-      )}
+        <div className="col-md-4">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body text-center">
+              <i className="bi bi-list-check text-info fs-1 mb-3"></i>
+              <h5 className="card-title">Manage Applications</h5>
+              <p className="card-text text-muted">Review and process applications</p>
+              <Link to="/applications" className="btn btn-info">
+                <i className="bi bi-list me-1"></i>
+                View All Applications
+              </Link>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-4">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body text-center">
+              <i className="bi bi-shield-check text-success fs-1 mb-3"></i>
+              <h5 className="card-title">System Logs</h5>
+              <p className="card-text text-muted">View system activity and audit logs</p>
+              <Link to="/audit" className="btn btn-success">
+                <i className="bi bi-journal-text me-1"></i>
+                View Logs
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

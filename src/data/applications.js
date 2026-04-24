@@ -1,121 +1,97 @@
 export const applications = [
   {
-    id: 1,
-    name: "Ahmed Mohamed",
-    email: "ahmed.mohamed@email.com",
-    phone: "+20 123 456 7890",
-    project: "Cairo Garden Residences",
-    status: "pending",
-    submissionDate: "2024-01-15",
-    income: 25000,
+    _id: 'fallback-1',
+    name: 'mahmoud el sayed ahmed',
+    email: 'mahmoud@gamil.com',
+    phone: '01289215667',
+    projectName: 'new cairo',
+    status: 'pending',
+    createdAt: new Date('2026-04-02T20:36:16.919Z'),
+    nationalId: '12345678955534',
     familySize: 4,
-    currentHousing: "Rented Apartment",
-    nationalId: "29501011234567",
-    address: "123 El-Mohandseen Street, Giza"
-  },
-  {
-    id: 2,
-    name: "Fatma Ali",
-    email: "fatma.ali@email.com",
-    phone: "+20 987 654 3210",
-    project: "Alexandria Coastal Towers",
-    status: "approved",
-    submissionDate: "2024-01-10",
-    income: 18000,
-    familySize: 3,
-    currentHousing: "Family House",
-    nationalId: "29802022345678",
-    address: "456 Gamal Abdel Nasser Street, Alexandria"
-  },
-  {
-    id: 3,
-    name: "Mohamed Hassan",
-    email: "mohamed.hassan@email.com",
-    phone: "+20 555 123 4567",
-    project: "New Capital City Complex",
-    status: "rejected",
-    submissionDate: "2024-01-08",
-    income: 15000,
-    familySize: 5,
-    currentHousing: "Shared Apartment",
-    nationalId: "29203033456789",
-    address: "789 Tahrir Square, Cairo"
-  },
-  {
-    id: 4,
-    name: "Sara Mahmoud",
-    email: "sara.mahmoud@email.com",
-    phone: "+20 111 222 3333",
-    project: "Cairo Garden Residences",
-    status: "pending",
-    submissionDate: "2024-01-20",
-    income: 22000,
-    familySize: 2,
-    currentHousing: "Rented Apartment",
-    nationalId: "29504044567890",
-    address: "321 Sphinx Street, Giza"
-  },
-  {
-    id: 5,
-    name: "Omar Khalid",
-    email: "omar.khalid@email.com",
-    phone: "+20 999 888 7777",
-    project: "Luxor Riverside Homes",
-    status: "approved",
-    submissionDate: "2024-01-12",
-    income: 30000,
-    familySize: 6,
-    currentHousing: "Family House",
-    nationalId: "29105055678901",
-    address: "654 Karnak Temple Road, Luxor"
-  },
-  {
-    id: 6,
-    name: "Nadia Ahmed",
-    email: "nadia.ahmed@email.com",
-    phone: "+20 777 666 5555",
-    project: "Aswan Mountain View",
-    status: "pending",
-    submissionDate: "2024-01-18",
-    income: 20000,
-    familySize: 4,
-    currentHousing: "Rented Apartment",
-    nationalId: "29806066789012",
-    address: "987 Nile Corniche, Aswan"
-  },
-  {
-    id: 7,
-    name: "Kamal Rashid",
-    email: "kamal.rashid@email.com",
-    phone: "+20 444 333 2222",
-    project: "Sharm El Sheikh Resort",
-    status: "rejected",
-    submissionDate: "2024-01-05",
     income: 12000,
-    familySize: 2,
-    currentHousing: "Shared Apartment",
-    nationalId: "29307077890123",
-    address: "147 Peace Road, Sharm El Sheikh"
+    currentHousing: 'I live in Alexandria with my family',
+    documents: {
+      nationalIdCopy: 'uploaded',
+      incomeCertificate: 'uploaded',
+      birthCertificate: 'uploaded'
+    }
   },
   {
-    id: 8,
-    name: "Laila Mohamed",
-    email: "laila.mohamed@email.com",
-    phone: "+20 666 555 4444",
-    project: "Cairo Garden Residences",
-    status: "approved",
-    submissionDate: "2024-01-14",
-    income: 28000,
+    _id: 'fallback-2',
+    name: 'hisham ashraf',
+    email: 'final@test.com',
+    phone: '01000000000',
+    projectName: 'new alamien',
+    status: 'pending',
+    createdAt: new Date('2026-04-02T20:26:21.093Z'),
+    nationalId: '12345678901234',
     familySize: 3,
-    currentHousing: "Rented Apartment",
-    nationalId: "29508088901234",
-    address: "258 Salah Salem Street, Cairo"
+    income: 5000,
+    currentHousing: 'I live in Alexandria with my family',
+    documents: {
+      nationalIdCopy: 'uploaded',
+      incomeCertificate: 'uploaded',
+      birthCertificate: 'uploaded'
+    }
+  },
+  {
+    _id: 'fallback-3',
+    name: 'Fatma Ali',
+    email: 'fatma@example.com',
+    phone: '01022222222',
+    projectName: 'Alexandria Coastal Towers',
+    status: 'approved',
+    createdAt: new Date('2026-04-02T20:22:00.446Z'),
+    nationalId: '22222222222222',
+    familySize: 3,
+    income: 12000,
+    currentHousing: 'Living with parents',
+    reviewedAt: new Date('2026-04-02T20:22:50.383Z'),
+    reviewedBy: 'Admin User',
+    documents: {
+      nationalIdCopy: 'uploaded',
+      incomeCertificate: 'uploaded',
+      birthCertificate: 'uploaded'
+    }
+  },
+  {
+    _id: 'fallback-4',
+    name: 'Ahmed Mohamed',
+    email: 'ahmed@example.com',
+    phone: '01033333333',
+    projectName: 'Cairo Skyline',
+    status: 'rejected',
+    createdAt: new Date('2026-04-02T20:21:38.192Z'),
+    nationalId: '33333333333333',
+    familySize: 5,
+    income: 8000,
+    currentHousing: 'Shared accommodation',
+    rejectionReason: 'uploaded documents not completed',
+    reviewedAt: new Date('2026-04-02T20:23:14.525Z'),
+    reviewedBy: 'Admin User',
+    documents: {
+      nationalIdCopy: 'uploaded',
+      incomeCertificate: 'uploaded',
+      birthCertificate: 'uploaded'
+    }
+  },
+  {
+    _id: 'fallback-5',
+    name: 'Test User',
+    email: 'test@example.com',
+    phone: '01012345678',
+    projectName: 'Cairo Garden Residences',
+    status: 'pending',
+    createdAt: new Date('2026-04-02T20:06:31.867Z'),
+    nationalId: '11111111111111',
+    familySize: 4,
+    income: 15000,
+    currentHousing: 'Currently living in rented apartment in Cairo',
+    documents: {
+      nationalIdCopy: 'uploaded',
+      incomeCertificate: 'uploaded',
+      birthCertificate: 'uploaded'
+    }
   }
 ];
-
-export const applicationStats = {
-  total: applications.length,
-  pending: applications.filter(app => app.status === 'pending').length,
-  approved: applications.filter(app => app.status === 'approved').length,
-  rejected: applications.filter(app => app.status === 'rejected').length
-};

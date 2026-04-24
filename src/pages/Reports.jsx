@@ -1,283 +1,285 @@
 import React, { useState, useEffect } from 'react';
+import dataService from '../services/dataService';
 
 const Reports = () => {
-  const [applications, setApplications] = useState([]);
-  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedPeriod, setSelectedPeriod] = useState('monthly');
-  const [selectedReport, setSelectedReport] = useState('overview');
+  const [selectedPeriod, setSelectedPeriod] = useState('all');
+  const [selectedProject, setSelectedProject] = useState('all');
+  const [selectedCity, setSelectedCity] = useState('all');
+  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [reportData, setReportData] = useState({
+    users: [],
+    projects: [],
+    applications: [],
+    auditLogs: []
+  });
 
-  // Fallback data
-  const fallbackApplications = [
-    {
-      _id: 'fallback-1',
-      name: 'mahmoud el sayed ahmed',
-      email: 'mahmoud@gamil.com',
-      phone: '01289215667',
-      projectName: 'new cairo',
-      status: 'pending',
-      createdAt: new Date('2026-04-02T20:36:16.919Z'),
-      nationalId: '12345678955534',
-      familySize: 4,
-      income: 12000,
-      currentHousing: 'I live in Alexandria with my family',
-      documents: {
-        nationalIdCopy: 'uploaded',
-        incomeCertificate: 'uploaded',
-        birthCertificate: 'uploaded'
-      }
-    },
-    {
-      _id: 'fallback-2',
-      name: 'hisham ashraf',
-      email: 'final@test.com',
-      phone: '01000000000',
-      projectName: 'new alamien',
-      status: 'pending',
-      createdAt: new Date('2026-04-02T20:26:21.093Z'),
-      nationalId: '12345678901234',
-      familySize: 3,
-      income: 5000,
-      currentHousing: 'I live in Alexandria with my family',
-      documents: {
-        nationalIdCopy: 'uploaded',
-        incomeCertificate: 'uploaded',
-        birthCertificate: 'uploaded'
-      }
-    },
-    {
-      _id: 'fallback-3',
-      name: 'Fatma Ali',
-      email: 'fatma@example.com',
-      phone: '01022222222',
-      projectName: 'Alexandria Coastal Towers',
-      status: 'approved',
-      createdAt: new Date('2026-04-02T20:22:00.446Z'),
-      nationalId: '22222222222222',
-      familySize: 3,
-      income: 12000,
-      currentHousing: 'Living with parents',
-      reviewedAt: new Date('2026-04-02T20:22:50.383Z'),
-      reviewedBy: 'Admin User',
-      documents: {
-        nationalIdCopy: 'uploaded',
-        incomeCertificate: 'uploaded',
-        birthCertificate: 'uploaded'
-      }
-    },
-    {
-      _id: 'fallback-4',
-      name: 'Hassan Omar',
-      email: 'hassan@example.com',
-      phone: '01033333333',
-      projectName: 'New Capital City Complex',
-      status: 'rejected',
-      createdAt: new Date('2026-04-02T20:21:38.192Z'),
-      nationalId: '33333333333333',
-      familySize: 5,
-      income: 18000,
-      currentHousing: 'Shared accommodation',
-      rejectionReason: 'uploaded documents not completed',
-      reviewedAt: new Date('2026-04-02T20:23:14.525Z'),
-      reviewedBy: 'Admin User',
-      documents: {
-        nationalIdCopy: 'uploaded',
-        incomeCertificate: 'uploaded',
-        birthCertificate: 'uploaded'
-      }
-    },
-    {
-      _id: 'fallback-5',
-      name: 'Test User',
-      email: 'test@example.com',
-      phone: '01012345678',
-      projectName: 'Cairo Garden Residences',
-      status: 'pending',
-      createdAt: new Date('2026-04-02T20:06:31.867Z'),
-      nationalId: '11111111111111',
-      familySize: 4,
-      income: 15000,
-      currentHousing: 'Currently living in rented apartment in Cairo',
-      documents: {
-        nationalIdCopy: 'uploaded',
-        incomeCertificate: 'uploaded',
-        birthCertificate: 'uploaded'
-      }
+  // Load data using data service
+  const loadReportData = () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const data = {
+        users: dataService.getUsers(),
+        projects: dataService.getProjects(),
+        applications: dataService.getApplications(),
+        auditLogs: dataService.getAuditLogs()
+      };
+      
+      setReportData(data);
+      console.log('Government Housing Reports loaded:', {
+        users: data.users.length,
+        projects: data.projects.length,
+        applications: data.applications.length,
+        auditLogs: data.auditLogs.length
+      });
+    } catch (err) {
+      console.error('Error loading report data:', err);
+      setError('Failed to load report data. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  const fallbackProjects = [
-    {
-      _id: 'proj-1',
-      name: 'New Cairo Residential Complex',
-      location: 'New Cairo, Egypt',
-      type: 'Residential',
-      status: 'active',
-      totalUnits: 500,
-      availableUnits: 150,
-      priceRange: '2M - 5M EGP',
-      description: 'Modern residential complex with amenities'
-    },
-    {
-      _id: 'proj-2',
-      name: 'Alexandria Coastal Towers',
-      location: 'Alexandria, Egypt',
-      type: 'Residential',
-      status: 'active',
-      totalUnits: 300,
-      availableUnits: 75,
-      priceRange: '3M - 7M EGP',
-      description: 'Luxury coastal apartments with sea view'
-    },
-    {
-      _id: 'proj-3',
-      name: 'New Capital City Complex',
-      location: 'New Capital, Egypt',
-      type: 'Commercial & Residential',
-      status: 'planning',
-      totalUnits: 1000,
-      availableUnits: 1000,
-      priceRange: '1.5M - 4M EGP',
-      description: 'Mixed-use development in administrative capital'
-    }
-  ];
-
-  // Fetch data from backend
+  // Setup data service subscription and initial load
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        
-        // Use fallback data immediately
-        console.log('Loading Reports with fallback data...');
-        setApplications(fallbackApplications);
-        setProjects(fallbackProjects);
-        
-      } catch (err) {
-        console.error('Error loading reports:', err);
-        setError(err.message);
-        // Still use fallback data even on error
-        setApplications(fallbackApplications);
-        setProjects(fallbackProjects);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    loadReportData();
+    
+    // Subscribe to data changes for live updates
+    const unsubscribe = dataService.subscribe((changeType, data, cache) => {
+      console.log('Reports received data change:', changeType);
+      loadReportData();
+    });
+    
+    return () => unsubscribe();
   }, []);
 
-  // Calculate statistics
-  const stats = {
-    total: applications.length,
-    approved: applications.filter(app => app.status === 'approved').length,
-    pending: applications.filter(app => app.status === 'pending').length,
-    rejected: applications.filter(app => app.status === 'rejected').length,
-    approvalRate: applications.length > 0 ? 
-      ((applications.filter(app => app.status === 'approved').length / applications.length) * 100).toFixed(1) : 0,
-    avgProcessingTime: '3.2', // Would calculate from actual data
-    activeProjects: projects.filter(proj => proj.status === 'active').length
+  // Calculate comprehensive statistics
+  const calculateStatistics = () => {
+    const { users, projects, applications, auditLogs } = reportData;
+    
+    // Application Statistics
+    const totalApplications = applications.length;
+    const approvedApplications = applications.filter(app => app.status === 'approved').length;
+    const pendingApplications = applications.filter(app => app.status === 'pending').length;
+    const rejectedApplications = applications.filter(app => app.status === 'rejected').length;
+    
+    // Project Statistics
+    const totalProjects = projects.length;
+    const activeProjects = projects.filter(proj => proj.status === 'active').length;
+    const completedProjects = projects.filter(proj => proj.status === 'completed').length;
+    
+    // User Statistics
+    const totalUsers = users.length;
+    
+    // Performance Metrics
+    const calculateAvgApprovalTime = () => {
+      const approvedApps = applications.filter(app => app.status === 'approved' && app.reviewedAt);
+      if (approvedApps.length === 0) return '0.0';
+      
+      const totalTime = approvedApps.reduce((sum, app) => {
+        const submitted = new Date(app.submittedAt);
+        const reviewed = new Date(app.reviewedAt);
+        const days = Math.floor((reviewed - submitted) / (1000 * 60 * 60 * 24));
+        return sum + days;
+      }, 0);
+      
+      return (totalTime / approvedApps.length).toFixed(1);
+    };
+    
+    // Most requested project
+    const getMostRequestedProject = () => {
+      const projectCounts = {};
+      applications.forEach(app => {
+        const project = projects.find(p => p.id === app.projectId);
+        if (project) {
+          projectCounts[project.name] = (projectCounts[project.name] || 0) + 1;
+        }
+      });
+      
+      return Object.keys(projectCounts).length > 0 ? 
+        Object.entries(projectCounts).sort((a, b) => b[1] - a[1])[0][0] : 
+        'N/A';
+    };
+    
+    // Highest demand city
+    const getHighestDemandCity = () => {
+      const cityCounts = {};
+      projects.forEach(proj => {
+        const city = proj.location?.city || 'Unknown';
+        cityCounts[city] = (cityCounts[city] || 0) + 1;
+      });
+      
+      return Object.keys(cityCounts).length > 0 ? 
+        Object.entries(cityCounts).sort((a, b) => b[1] - a[1])[0][0] : 
+        'N/A';
+    };
+    
+    // Monthly approvals
+    const getMonthlyApprovals = () => {
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      
+      return applications.filter(app => {
+        if (app.status !== 'approved' || !app.reviewedAt) return false;
+        const reviewedDate = new Date(app.reviewedAt);
+        return reviewedDate.getMonth() === currentMonth && reviewedDate.getFullYear() === currentYear;
+      }).length;
+    };
+    
+    return {
+      totalApplications,
+      approvedApplications,
+      pendingApplications,
+      rejectedApplications,
+      totalProjects,
+      activeProjects,
+      completedProjects,
+      totalUsers,
+      avgApprovalTime: calculateAvgApprovalTime(),
+      mostRequestedProject: getMostRequestedProject(),
+      highestDemandCity: getHighestDemandCity(),
+      monthlyApprovals: getMonthlyApprovals()
+    };
+  };
+
+  const stats = calculateStatistics();
+
+  // Filter data based on selected filters
+  const getFilteredData = () => {
+    let filteredApplications = [...reportData.applications];
+    let filteredProjects = [...reportData.projects];
+    
+    // Status filter
+    if (selectedStatus !== 'all') {
+      filteredApplications = filteredApplications.filter(app => app.status === selectedStatus);
+    }
+    
+    // Project filter
+    if (selectedProject !== 'all') {
+      filteredApplications = filteredApplications.filter(app => app.projectId === selectedProject);
+    }
+    
+    // City filter
+    if (selectedCity !== 'all') {
+      filteredProjects = filteredProjects.filter(proj => proj.location?.city === selectedCity);
+      const projectIds = new Set(filteredProjects.map(p => p.id));
+      filteredApplications = filteredApplications.filter(app => projectIds.has(app.projectId));
+    }
+    
+    // Date range filter
+    if (selectedPeriod !== 'all') {
+      const now = new Date();
+      let startDate;
+      
+      switch (selectedPeriod) {
+        case '7days':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30days':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case '90days':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = null;
+      }
+      
+      if (startDate) {
+        filteredApplications = filteredApplications.filter(app => 
+          new Date(app.submittedAt) >= startDate
+        );
+      }
+    }
+    
+    return { filteredApplications, filteredProjects };
+  };
+
+  const { filteredApplications, filteredProjects } = getFilteredData();
+
+  // Get unique cities for filter
+  const getUniqueCities = () => {
+    const cities = [...new Set(reportData.projects.map(proj => proj.location?.city).filter(Boolean))];
+    return cities.sort();
+  };
+
+  // Chart data calculations
+  const getApplicationsByStatus = () => {
+    return [
+      { name: 'Approved', value: stats.approvedApplications, color: '#28a745' },
+      { name: 'Pending', value: stats.pendingApplications, color: '#ffc107' },
+      { name: 'Rejected', value: stats.rejectedApplications, color: '#dc3545' }
+    ];
+  };
+
+  const getApplicationsByMonth = () => {
+    const monthData = {};
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    months.forEach(month => monthData[month] = 0);
+    
+    reportData.applications.forEach(app => {
+      const month = new Date(app.submittedAt).toLocaleDateString('en-US', { month: 'short' });
+      if (monthData[month] !== undefined) {
+        monthData[month]++;
+      }
+    });
+    
+    return Object.entries(monthData).map(([month, count]) => ({ month, count }));
+  };
+
+  const getProjectsByCity = () => {
+    const cityData = {};
+    
+    reportData.projects.forEach(proj => {
+      const city = proj.location?.city || 'Unknown';
+      cityData[city] = (cityData[city] || 0) + 1;
+    });
+    
+    return Object.entries(cityData).map(([city, count]) => ({ city, count }));
   };
 
   // Export functions
-  const exportToCSV = (type) => {
-    let data = [];
-    let filename = '';
-    let headers = [];
-
-    switch (type) {
-      case 'applications':
-        // Use actual applications data or sample data if empty
-        data = applications.length > 0 ? applications : [
-          {
-            _id: 'sample123',
-            name: 'Ahmed Mohamed',
-            email: 'ahmed@example.com',
-            projectName: 'Cairo Garden Residences',
-            status: 'approved',
-            income: '15000',
-            familySize: '4',
-            createdAt: new Date().toISOString()
-          },
-          {
-            _id: 'sample456',
-            name: 'Fatma Ali',
-            email: 'fatma@example.com',
-            projectName: 'Alexandria Coastal Towers',
-            status: 'pending',
-            income: '12000',
-            familySize: '3',
-            createdAt: new Date().toISOString()
-          }
-        ];
-        filename = `housing-applications-${new Date().toISOString().split('T')[0]}.csv`;
-        headers = ['Application ID', 'Applicant Name', 'Email', 'Housing Project', 'Status', 'Monthly Income (EGP)', 'Family Size', 'Submission Date'];
-        break;
-      case 'projects':
-        // Use actual projects data or sample data if empty
-        data = projects.length > 0 ? projects : [
-          {
-            _id: 'proj789',
-            name: 'Cairo Garden Residences',
-            location: 'Cairo, Egypt',
-            type: 'Apartments',
-            totalUnits: 120,
-            availableUnits: 45,
-            priceRange: '2M - 5M EGP',
-            status: 'active'
-          },
-          {
-            _id: 'proj012',
-            name: 'Alexandria Coastal Towers',
-            location: 'Alexandria, Egypt',
-            type: 'Villas',
-            totalUnits: 60,
-            availableUnits: 22,
-            priceRange: '4M - 8M EGP',
-            status: 'active'
-          }
-        ];
-        filename = `housing-projects-${new Date().toISOString().split('T')[0]}.csv`;
-        headers = ['Project ID', 'Project Name', 'Location', 'Property Type', 'Total Units', 'Available Units', 'Price Range', 'Status'];
-        break;
-      default:
-        return;
-    }
-
-    // Generate CSV content
-    const csvContent = [
-      headers.join(','),
-      ...data.map(item => {
-        if (type === 'applications') {
-          return [
-            item._id?.toString().slice(-8) || 'N/A',
-            `"${item.name || 'N/A'}"`,
-            `"${item.email || 'N/A'}"`,
-            `"${item.projectName || 'N/A'}"`,
-            item.status || 'N/A',
-            item.income || 'N/A',
-            item.familySize || 'N/A',
-            new Date(item.createdAt || new Date()).toLocaleDateString('en-US')
-          ].join(',');
-        } else if (type === 'projects') {
-          return [
-            item._id?.toString().slice(-8) || 'N/A',
-            `"${item.name || 'N/A'}"`,
-            `"${item.location || 'N/A'}"`,
-            item.type || 'N/A',
-            item.totalUnits || 'N/A',
-            item.availableUnits || 'N/A',
-            `"${item.priceRange || 'N/A'}"`,
-            item.status || 'N/A'
-          ].join(',');
-        }
-        return '';
-      }).filter(row => row !== '')
-    ].join('\n');
-
-    // Create and download CSV file
+  const exportToCSV = (type, data) => {
     try {
+      let csvData = [];
+      let filename = '';
+      let headers = [];
+
+      if (type === 'applications') {
+        headers = ['Application ID', 'Applicant Name', 'Project Name', 'Status', 'Submission Date'];
+        csvData = data.map(app => {
+          const user = reportData.users.find(u => u.id === app.userId);
+          const project = reportData.projects.find(p => p.id === app.projectId);
+          return [
+            app.id,
+            user?.name || 'Unknown',
+            project?.name || 'Unknown',
+            app.status,
+            new Date(app.submittedAt).toLocaleDateString()
+          ];
+        });
+        filename = `applications-report-${new Date().toISOString().split('T')[0]}.csv`;
+      } else if (type === 'projects') {
+        headers = ['Project Name', 'Location', 'Available Units', 'Sold Units', 'Progress %'];
+        csvData = data.map(proj => [
+          proj.name,
+          `${proj.location?.city || 'Unknown'}, ${proj.location?.district || 'Unknown'}`,
+          proj.development?.availableUnits || 0,
+          proj.development?.soldUnits || 0,
+          proj.timeline?.constructionProgress || 0
+        ]);
+        filename = `projects-report-${new Date().toISOString().split('T')[0]}.csv`;
+      }
+
+      const csvContent = [
+        headers.join(','),
+        ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -288,214 +290,268 @@ const Reports = () => {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
       
-      // Show success message
-      alert(`✅ ${type === 'applications' ? 'Housing Applications' : 'Housing Projects'} report exported successfully!`);
+      console.log(`${type} report exported successfully`);
     } catch (error) {
       console.error('Export error:', error);
-      alert('❌ Failed to export report. Please try again.');
+      alert('Error exporting data. Please try again.');
     }
+  };
+
+  const printReport = () => {
+    window.print();
   };
 
   if (loading) {
     return (
-      <div className="text-center py-5">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
+      <div className="container mt-4">
+        <div className="text-center">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-2 text-muted">Loading Government Housing Analytics...</p>
         </div>
-        <div className="mt-2 text-muted">Loading housing analytics...</div>
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="container mt-4">
+        <div className="alert alert-danger">
+          <h4><i className="bi bi-exclamation-triangle me-2"></i>Error Loading Reports</h4>
+          <p>{error}</p>
+          <button className="btn btn-primary" onClick={loadReportData}>
+            <i className="bi bi-arrow-clockwise me-2"></i>Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const applicationsByStatus = getApplicationsByStatus();
+  const applicationsByMonth = getApplicationsByMonth();
+  const projectsByCity = getProjectsByCity();
+
   return (
-    <div className="container-fluid p-4">
+    <div className="container-fluid mt-4 px-3 px-lg-4">
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
           <h2 className="mb-1">
             <i className="bi bi-graph-up text-primary me-2"></i>
-            Housing Analytics Dashboard
+            Government Housing Analytics Dashboard
           </h2>
-          <p className="text-muted mb-0">Real-time insights for your housing application system</p>
+          <p className="text-muted mb-0">
+            Ministry of Housing - Real-time System Performance Monitoring
+          </p>
         </div>
         <div className="d-flex gap-2">
-          <button className="btn btn-outline-primary" onClick={() => exportToCSV('applications')}>
-            <i className="bi bi-file-excel me-2"></i>Export Applications
+          <button className="btn btn-success" onClick={() => exportToCSV('applications', filteredApplications)}>
+            <i className="bi bi-file-earmark-excel me-2"></i>Export Applications
           </button>
-          <button className="btn btn-outline-success" onClick={() => exportToCSV('projects')}>
+          <button className="btn btn-info" onClick={() => exportToCSV('projects', filteredProjects)}>
             <i className="bi bi-building me-2"></i>Export Projects
           </button>
+          <button className="btn btn-secondary" onClick={printReport}>
+            <i className="bi bi-printer me-2"></i>Print Report
+          </button>
         </div>
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="alert alert-warning d-flex align-items-center mb-4">
-          <i className="bi bi-exclamation-triangle me-2"></i>
-          <div>
-            <strong>Warning:</strong> {error}
-            <div className="small mt-1">Showing sample data for demonstration</div>
-          </div>
-        </div>
-      )}
-
-      {/* Housing Statistics Cards */}
-      <div className="row mb-4">
-        <div className="col-lg-3 col-md-6 mb-3">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
-              <div className="d-flex align-items-center">
-                <div className="flex-grow-1">
-                  <h6 className="text-muted mb-2">
-                    <i className="bi bi-house-door me-1"></i>Total Applications
-                  </h6>
-                  <h3 className="mb-0 fw-bold">{stats.total}</h3>
-                  <small className="text-success">
-                    <i className="bi bi-arrow-up"></i> {stats.total > 0 ? '12%' : '0%'} from last month
-                  </small>
-                </div>
-                <div className="text-primary">
-                  <div className="bg-primary bg-opacity-10 rounded-circle p-3">
-                    <i className="bi bi-file-earmark-text fs-4"></i>
-                  </div>
-                </div>
-              </div>
+      {/* Filters */}
+      <div className="card border-0 shadow-sm mb-4">
+        <div className="card-body">
+          <h5 className="card-title mb-3">
+            <i className="bi bi-funnel text-primary me-2"></i>
+            Data Filters
+          </h5>
+          <div className="row g-3">
+            <div className="col-md-3">
+              <label className="form-label fw-semibold">Date Range</label>
+              <select 
+                className="form-select"
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value)}
+              >
+                <option value="all">All Time</option>
+                <option value="7days">Last 7 Days</option>
+                <option value="30days">Last 30 Days</option>
+                <option value="90days">Last 90 Days</option>
+              </select>
             </div>
-          </div>
-        </div>
-
-        <div className="col-lg-3 col-md-6 mb-3">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
-              <div className="d-flex align-items-center">
-                <div className="flex-grow-1">
-                  <h6 className="text-muted mb-2">
-                    <i className="bi bi-check-circle me-1"></i>Housing Approved
-                  </h6>
-                  <h3 className="mb-0 fw-bold text-success">{stats.approved}</h3>
-                  <small className="text-success">
-                    <i className="bi bi-arrow-up"></i> Families housed
-                  </small>
-                </div>
-                <div className="text-success">
-                  <div className="bg-success bg-opacity-10 rounded-circle p-3">
-                    <i className="bi bi-house-check fs-4"></i>
-                  </div>
-                </div>
-              </div>
+            <div className="col-md-3">
+              <label className="form-label fw-semibold">Project Name</label>
+              <select 
+                className="form-select"
+                value={selectedProject}
+                onChange={(e) => setSelectedProject(e.target.value)}
+              >
+                <option value="all">All Projects</option>
+                {reportData.projects.map(proj => (
+                  <option key={proj.id} value={proj.id}>{proj.name}</option>
+                ))}
+              </select>
             </div>
-          </div>
-        </div>
-
-        <div className="col-lg-3 col-md-6 mb-3">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
-              <div className="d-flex align-items-center">
-                <div className="flex-grow-1">
-                  <h6 className="text-muted mb-2">
-                    <i className="bi bi-clock-history me-1"></i>Under Review
-                  </h6>
-                  <h3 className="mb-0 fw-bold text-warning">{stats.pending}</h3>
-                  <small className="text-muted">
-                    <i className="bi bi-hourglass-split"></i> Awaiting decision
-                  </small>
-                </div>
-                <div className="text-warning">
-                  <div className="bg-warning bg-opacity-10 rounded-circle p-3">
-                    <i className="bi bi-hourglass-top fs-4"></i>
-                  </div>
-                </div>
-              </div>
+            <div className="col-md-3">
+              <label className="form-label fw-semibold">City / Governorate</label>
+              <select 
+                className="form-select"
+                value={selectedCity}
+                onChange={(e) => setSelectedCity(e.target.value)}
+              >
+                <option value="all">All Cities</option>
+                {getUniqueCities().map(city => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+              </select>
             </div>
-          </div>
-        </div>
-
-        <div className="col-lg-3 col-md-6 mb-3">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
-              <div className="d-flex align-items-center">
-                <div className="flex-grow-1">
-                  <h6 className="text-muted mb-2">
-                    <i className="bi bi-x-circle me-1"></i>Not Eligible
-                  </h6>
-                  <h3 className="mb-0 fw-bold text-danger">{stats.rejected}</h3>
-                  <small className="text-muted">
-                    <i className="bi bi-info-circle"></i> Requirements not met
-                  </small>
-                </div>
-                <div className="text-danger">
-                  <div className="bg-danger bg-opacity-10 rounded-circle p-3">
-                    <i className="bi bi-house-x fs-4"></i>
-                  </div>
-                </div>
-              </div>
+            <div className="col-md-3">
+              <label className="form-label fw-semibold">Application Status</label>
+              <select 
+                className="form-select"
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+              >
+                <option value="all">All Status</option>
+                <option value="approved">Approved</option>
+                <option value="pending">Pending</option>
+                <option value="rejected">Rejected</option>
+              </select>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Charts and Analytics */}
+      {/* Summary Cards */}
       <div className="row mb-4">
-        <div className="col-lg-8 mb-4">
-          <div className="card border-0 shadow-sm">
-            <div className="card-header bg-white border-0 pt-4 pb-3">
-              <div className="d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">
-                  <i className="bi bi-bar-chart-line text-primary me-2"></i>
-                  Housing Application Trends
-                </h5>
-                <select 
-                  className="form-select form-select-sm" 
-                  style={{ width: '120px' }}
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value)}
-                >
-                  <option value="monthly">Monthly</option>
-                  <option value="quarterly">Quarterly</option>
-                  <option value="yearly">Yearly</option>
-                </select>
-              </div>
-            </div>
+        <div className="col-lg-3 col-md-6 mb-3">
+          <div className="card border-0 shadow-sm h-100">
             <div className="card-body">
-              <div className="d-flex align-items-end justify-content-between" style={{ height: '300px', padding: '20px 10px' }}>
-                {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((month, index) => {
-                  const height = [120, 140, 100, 160, 130, 150][index];
-                  const value = [45, 52, 38, 65, 48, 58][index];
-                  return (
-                    <div key={month} className="text-center" style={{ flex: 1 }}>
-                      <div className="d-flex flex-column align-items-center" style={{ height: '250px', justifyContent: 'flex-end' }}>
-                        <div 
-                          className="bg-primary rounded-top" 
-                          style={{ 
-                            width: '35px', 
-                            height: `${height}px`, 
-                            marginBottom: '2px',
-                            transition: 'all 0.3s ease'
-                          }}
-                        ></div>
-                        <div className="mt-2" style={{ fontSize: '12px', fontWeight: '500' }}>{month}</div>
-                        <div className="text-muted" style={{ fontSize: '10px' }}>{value}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="d-flex justify-content-center gap-4 mt-3">
-                <div className="d-flex align-items-center">
-                  <div className="bg-primary rounded" style={{ width: '12px', height: '12px', marginRight: '6px' }}></div>
-                  <small>Housing Applications</small>
+              <div className="d-flex align-items-center">
+                <div className="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                  <i className="bi bi-file-earmark-text text-primary fs-4"></i>
+                </div>
+                <div>
+                  <h6 className="text-muted mb-1">Total Applications</h6>
+                  <h3 className="mb-0 fw-bold">{stats.totalApplications}</h3>
+                  <small className="text-muted">All time</small>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
+        <div className="col-lg-3 col-md-6 mb-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="bg-success bg-opacity-10 rounded-circle p-3 me-3">
+                  <i className="bi bi-check-circle text-success fs-4"></i>
+                </div>
+                <div>
+                  <h6 className="text-muted mb-1">Approved Applications</h6>
+                  <h3 className="mb-0 fw-bold text-success">{stats.approvedApplications}</h3>
+                  <small className="text-muted">Families housed</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-lg-3 col-md-6 mb-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="bg-warning bg-opacity-10 rounded-circle p-3 me-3">
+                  <i className="bi bi-clock-history text-warning fs-4"></i>
+                </div>
+                <div>
+                  <h6 className="text-muted mb-1">Pending Applications</h6>
+                  <h3 className="mb-0 fw-bold text-warning">{stats.pendingApplications}</h3>
+                  <small className="text-muted">Under review</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-lg-3 col-md-6 mb-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="bg-danger bg-opacity-10 rounded-circle p-3 me-3">
+                  <i className="bi bi-x-circle text-danger fs-4"></i>
+                </div>
+                <div>
+                  <h6 className="text-muted mb-1">Rejected Applications</h6>
+                  <h3 className="mb-0 fw-bold text-danger">{stats.rejectedApplications}</h3>
+                  <small className="text-muted">Not eligible</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-lg-3 col-md-6 mb-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="bg-info bg-opacity-10 rounded-circle p-3 me-3">
+                  <i className="bi bi-building text-info fs-4"></i>
+                </div>
+                <div>
+                  <h6 className="text-muted mb-1">Total Projects</h6>
+                  <h3 className="mb-0 fw-bold text-info">{stats.totalProjects}</h3>
+                  <small className="text-muted">Housing projects</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-lg-3 col-md-6 mb-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="bg-success bg-opacity-10 rounded-circle p-3 me-3">
+                  <i className="bi bi-hammer text-success fs-4"></i>
+                </div>
+                <div>
+                  <h6 className="text-muted mb-1">Active Projects</h6>
+                  <h3 className="mb-0 fw-bold text-success">{stats.activeProjects}</h3>
+                  <small className="text-muted">Under construction</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-lg-3 col-md-6 mb-3">
+          <div className="card border-0 shadow-sm h-100">
+            <div className="card-body">
+              <div className="d-flex align-items-center">
+                <div className="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                  <i className="bi bi-people text-primary fs-4"></i>
+                </div>
+                <div>
+                  <h6 className="text-muted mb-1">Total Users</h6>
+                  <h3 className="mb-0 fw-bold text-primary">{stats.totalUsers}</h3>
+                  <small className="text-muted">Registered citizens</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Section */}
+      <div className="row mb-4">
         <div className="col-lg-4 mb-4">
           <div className="card border-0 shadow-sm">
-            <div className="card-header bg-white border-0 pt-4 pb-3">
+            <div className="card-header bg-white border-0">
               <h5 className="mb-0">
-                <i className="bi bi-pie-chart-fill text-primary me-2"></i>
-                Application Status Distribution
+                <i className="bi bi-pie-chart text-primary me-2"></i>
+                Applications by Status
               </h5>
             </div>
             <div className="card-body">
@@ -506,7 +562,7 @@ const Reports = () => {
                       width: '180px', 
                       height: '180px', 
                       borderRadius: '50%', 
-                      background: `conic-gradient(#28a745 0deg ${stats.approved * 360 / stats.total}deg, #ffc107 ${stats.approved * 360 / stats.total}deg ${(stats.approved + stats.pending) * 360 / stats.total}deg, #dc3545 ${(stats.approved + stats.pending) * 360 / stats.total}deg 360deg)`,
+                      background: `conic-gradient(#28a745 0deg ${applicationsByStatus[0]?.value * 360 / stats.totalApplications}deg, #ffc107 ${applicationsByStatus[0]?.value * 360 / stats.totalApplications}deg ${(applicationsByStatus[0]?.value + applicationsByStatus[1]?.value) * 360 / stats.totalApplications}deg, #dc3545 ${(applicationsByStatus[0]?.value + applicationsByStatus[1]?.value) * 360 / stats.totalApplications}deg 360deg)`,
                       boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                     }}
                   ></div>
@@ -528,185 +584,255 @@ const Reports = () => {
                       boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
                     }}
                   >
-                    {stats.total}
+                    {stats.totalApplications}
                   </div>
                 </div>
               </div>
               <div className="legend">
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <div className="d-flex align-items-center">
-                    <div style={{ width: '12px', height: '12px', background: '#28a745', marginRight: '8px', borderRadius: '2px' }}></div>
-                    <span className="small">Housed</span>
+                {applicationsByStatus.map(item => (
+                  <div key={item.name} className="d-flex justify-content-between align-items-center mb-2">
+                    <div className="d-flex align-items-center">
+                      <div style={{ width: '12px', height: '12px', background: item.color, marginRight: '8px', borderRadius: '2px' }}></div>
+                      <span className="small">{item.name}</span>
+                    </div>
+                    <span className="small fw-bold">{item.value}</span>
                   </div>
-                  <span className="small fw-bold">{stats.approved}</span>
-                </div>
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <div className="d-flex align-items-center">
-                    <div style={{ width: '12px', height: '12px', background: '#ffc107', marginRight: '8px', borderRadius: '2px' }}></div>
-                    <span className="small">Under Review</span>
-                  </div>
-                  <span className="small fw-bold">{stats.pending}</span>
-                </div>
-                <div className="d-flex justify-content-between align-items-center">
-                  <div className="d-flex align-items-center">
-                    <div style={{ width: '12px', height: '12px', background: '#dc3545', marginRight: '8px', borderRadius: '2px' }}></div>
-                    <span className="small">Not Eligible</span>
-                  </div>
-                  <span className="small fw-bold">{stats.rejected}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Housing Metrics */}
-      <div className="row mb-4">
-        <div className="col-lg-4 mb-3">
-          <div className="card border-0 shadow-sm">
-            <div className="card-body">
-              <div className="d-flex align-items-center">
-                <div className="flex-grow-1">
-                  <h6 className="text-muted mb-2">
-                    <i className="bi bi-speedometer2 me-1"></i>Avg Processing Time
-                  </h6>
-                  <h3 className="mb-0 fw-bold">{stats.avgProcessingTime} <small className="text-muted">days</small></h3>
-                  <small className="text-success">
-                    <i className="bi bi-arrow-up"></i> 0.5 days faster than last month
-                  </small>
-                </div>
-                <div className="text-info">
-                  <div className="bg-info bg-opacity-10 rounded-circle p-3">
-                    <i className="bi bi-clock fs-4"></i>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="col-lg-4 mb-3">
+        <div className="col-lg-4 mb-4">
           <div className="card border-0 shadow-sm">
-            <div className="card-body">
-              <div className="d-flex align-items-center">
-                <div className="flex-grow-1">
-                  <h6 className="text-muted mb-2">
-                    <i className="bi bi-percent me-1"></i>Housing Success Rate
-                  </h6>
-                  <h3 className="mb-0 fw-bold">{stats.approvalRate} <small className="text-muted">%</small></h3>
-                  <small className="text-muted">
-                    <i className="bi bi-info-circle"></i> Of total applications
-                  </small>
-                </div>
-                <div className="text-primary">
-                  <div className="bg-primary bg-opacity-10 rounded-circle p-3">
-                    <i className="bi bi-graph-up-arrow fs-4"></i>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-lg-4 mb-3">
-          <div className="card border-0 shadow-sm">
-            <div className="card-body">
-              <div className="d-flex align-items-center">
-                <div className="flex-grow-1">
-                  <h6 className="text-muted mb-2">
-                    <i className="bi bi-building me-1"></i>Active Housing Projects
-                  </h6>
-                  <h3 className="mb-0 fw-bold">{stats.activeProjects}</h3>
-                  <small className="text-success">
-                    <i className="bi bi-arrow-up"></i> 2 new projects this month
-                  </small>
-                </div>
-                <div className="text-success">
-                  <div className="bg-success bg-opacity-10 rounded-circle p-3">
-                    <i className="bi bi-building-house fs-4"></i>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Housing Projects Distribution */}
-      <div className="row mb-4">
-        <div className="col-12">
-          <div className="card border-0 shadow-sm">
-            <div className="card-header bg-white border-0 pt-4 pb-3">
+            <div className="card-header bg-white border-0">
               <h5 className="mb-0">
-                <i className="bi bi-building-fill text-primary me-2"></i>
-                Housing Projects Performance
+                <i className="bi bi-bar-chart text-primary me-2"></i>
+                Applications per Month
               </h5>
             </div>
             <div className="card-body">
-              <div className="table-responsive">
-                <table className="table table-hover">
-                  <thead>
-                    <tr>
-                      <th>Housing Project</th>
-                      <th>Applications</th>
-                      <th>Housed</th>
-                      <th>Under Review</th>
-                      <th>Not Eligible</th>
-                      <th>Success Rate</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {projects.length > 0 ? projects.map((project) => {
-                      const projectApps = applications.filter(app => app.projectName === project.name);
-                      const approved = projectApps.filter(app => app.status === 'approved').length;
-                      const pending = projectApps.filter(app => app.status === 'pending').length;
-                      const rejected = projectApps.filter(app => app.status === 'rejected').length;
-                      const successRate = projectApps.length > 0 ? ((approved / projectApps.length) * 100).toFixed(1) : 0;
+              <div className="d-flex align-items-end justify-content-between" style={{ height: '200px', padding: '10px 5px' }}>
+                {applicationsByMonth.slice(0, 6).map((item, index) => {
+                  const maxValue = Math.max(...applicationsByMonth.slice(0, 6).map(m => m.count));
+                  const height = maxValue > 0 ? (item.count / maxValue) * 160 : 10;
+                  return (
+                    <div key={item.month} className="text-center" style={{ flex: 1 }}>
+                      <div className="d-flex flex-column align-items-center" style={{ height: '170px', justifyContent: 'flex-end' }}>
+                        <div 
+                          className="bg-primary rounded-top" 
+                          style={{ 
+                            width: '25px', 
+                            height: `${height}px`, 
+                            marginBottom: '2px',
+                            transition: 'all 0.3s ease'
+                          }}
+                        ></div>
+                        <div className="mt-1" style={{ fontSize: '10px', fontWeight: '500' }}>{item.month}</div>
+                        <div className="text-muted" style={{ fontSize: '8px' }}>{item.count}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
 
-                      return (
-                        <tr key={project._id}>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <div className="bg-primary bg-opacity-10 rounded p-2 me-3">
-                                <i className="bi bi-building text-primary"></i>
-                              </div>
-                              <div>
-                                <div className="fw-medium">{project.name}</div>
-                                <small className="text-muted">{project.location}</small>
-                              </div>
-                            </div>
-                          </td>
-                          <td><span className="badge bg-light text-dark">{projectApps.length}</span></td>
-                          <td><span className="badge bg-success">{approved}</span></td>
-                          <td><span className="badge bg-warning">{pending}</span></td>
-                          <td><span className="badge bg-danger">{rejected}</span></td>
-                          <td>
-                            <div className="d-flex align-items-center">
-                              <div className="progress flex-grow-1 me-2" style={{ height: '6px', width: '60px' }}>
-                                <div className="progress-bar bg-success" style={{ width: `${successRate}%` }}></div>
-                              </div>
-                              <small className="text-muted">{successRate}%</small>
-                            </div>
-                          </td>
-                          <td><span className="badge bg-success">{project.status}</span></td>
-                        </tr>
-                      );
-                    }) : (
-                      <tr>
-                        <td colSpan="7" className="text-center py-4">
-                          <i className="bi bi-inbox text-muted" style={{ fontSize: '2rem' }}></i>
-                          <div className="text-muted mt-2">No housing projects found</div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+        <div className="col-lg-4 mb-4">
+          <div className="card border-0 shadow-sm">
+            <div className="card-header bg-white border-0">
+              <h5 className="mb-0">
+                <i className="bi bi-geo-alt text-primary me-2"></i>
+                Projects by City
+              </h5>
+            </div>
+            <div className="card-body">
+              {projectsByCity.map((item, index) => (
+                <div key={item.city} className="mb-3">
+                  <div className="d-flex justify-content-between align-items-center mb-1">
+                    <small className="fw-medium">{item.city}</small>
+                    <small className="text-muted">{item.count} projects</small>
+                  </div>
+                  <div className="progress" style={{ height: '6px' }}>
+                    <div 
+                      className="progress-bar bg-info" 
+                      style={{ width: `${(item.count / Math.max(...projectsByCity.map(c => c.count))) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Performance Metrics */}
+      <div className="row mb-4">
+        <div className="col-12">
+          <div className="card border-0 shadow-sm">
+            <div className="card-header bg-white border-0">
+              <h5 className="mb-0">
+                <i className="bi bi-speedometer2 text-primary me-2"></i>
+                Performance Metrics
+              </h5>
+            </div>
+            <div className="card-body">
+              <div className="row text-center">
+                <div className="col-md-3 mb-3">
+                  <div className="bg-primary bg-opacity-10 rounded p-3">
+                    <h4 className="text-primary mb-1">{stats.avgApprovalTime} <small className="text-muted">days</small></h4>
+                    <small className="text-muted">Average Approval Time</small>
+                  </div>
+                </div>
+                <div className="col-md-3 mb-3">
+                  <div className="bg-success bg-opacity-10 rounded p-3">
+                    <h5 className="text-success mb-1">{stats.mostRequestedProject}</h5>
+                    <small className="text-muted">Most Requested Project</small>
+                  </div>
+                </div>
+                <div className="col-md-3 mb-3">
+                  <div className="bg-info bg-opacity-10 rounded p-3">
+                    <h5 className="text-info mb-1">{stats.highestDemandCity}</h5>
+                    <small className="text-muted">Highest Demand City</small>
+                  </div>
+                </div>
+                <div className="col-md-3 mb-3">
+                  <div className="bg-warning bg-opacity-10 rounded p-3">
+                    <h4 className="text-warning mb-1">{stats.monthlyApprovals}</h4>
+                    <small className="text-muted">Approvals This Month</small>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Detailed Reports Tables */}
+      <div className="row">
+        <div className="col-lg-6 mb-4">
+          <div className="card border-0 shadow-sm">
+            <div className="card-header bg-white border-0">
+              <h5 className="mb-0">
+                <i className="bi bi-file-earmark-text text-primary me-2"></i>
+                Applications Report
+              </h5>
+            </div>
+            <div className="card-body">
+              {filteredApplications.length > 0 ? (
+                <div className="table-responsive">
+                  <table className="table table-sm">
+                    <thead>
+                      <tr>
+                        <th>Application ID</th>
+                        <th>Applicant Name</th>
+                        <th>Project Name</th>
+                        <th>Status</th>
+                        <th>Submission Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredApplications.map(app => {
+                        const user = reportData.users.find(u => u.id === app.userId);
+                        const project = reportData.projects.find(p => p.id === app.projectId);
+                        return (
+                          <tr key={app.id}>
+                            <td><small className="font-monospace">{app.id?.slice(-8)}</small></td>
+                            <td>{user?.name || 'Unknown'}</td>
+                            <td>{project?.name || 'Unknown'}</td>
+                            <td>
+                              <span className={`badge bg-${
+                                app.status === 'approved' ? 'success' :
+                                app.status === 'pending' ? 'warning' : 'danger'
+                              }`}>
+                                {app.status}
+                              </span>
+                            </td>
+                            <td><small>{new Date(app.submittedAt).toLocaleDateString()}</small></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <i className="bi bi-inbox text-muted" style={{ fontSize: '2rem' }}></i>
+                  <p className="text-muted mt-2">No applications found matching current filters</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="col-lg-6 mb-4">
+          <div className="card border-0 shadow-sm">
+            <div className="card-header bg-white border-0">
+              <h5 className="mb-0">
+                <i className="bi bi-building text-primary me-2"></i>
+                Projects Report
+              </h5>
+            </div>
+            <div className="card-body">
+              {filteredProjects.length > 0 ? (
+                <div className="table-responsive">
+                  <table className="table table-sm">
+                    <thead>
+                      <tr>
+                        <th>Project Name</th>
+                        <th>Location</th>
+                        <th>Available Units</th>
+                        <th>Sold Units</th>
+                        <th>Progress %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredProjects.map(proj => (
+                        <tr key={proj.id}>
+                          <td>{proj.name}</td>
+                          <td><small>{proj.location?.city || 'Unknown'}</small></td>
+                          <td>{proj.development?.availableUnits || 0}</td>
+                          <td>{proj.development?.soldUnits || 0}</td>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              <div className="progress flex-grow-1 me-2" style={{ height: '6px' }}>
+                                <div 
+                                  className="progress-bar bg-success" 
+                                  style={{ width: `${proj.timeline?.constructionProgress || 0}%` }}
+                                ></div>
+                              </div>
+                              <small>{proj.timeline?.constructionProgress || 0}%</small>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <i className="bi bi-building text-muted" style={{ fontSize: '2rem' }}></i>
+                  <p className="text-muted mt-2">No projects found matching current filters</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Empty State */}
+      {stats.totalApplications === 0 && stats.totalProjects === 0 && (
+        <div className="text-center py-5">
+          <i className="bi bi-graph-up text-muted" style={{ fontSize: '4rem' }}></i>
+          <h4 className="text-muted mt-3">No Report Data Available</h4>
+          <p className="text-muted">
+            There is currently no data to display in the Government Housing Analytics Dashboard.
+            <br />
+            Please ensure data is properly configured in the system.
+          </p>
+        </div>
+      )}
     </div>
   );
 };
