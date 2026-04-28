@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Alert } from 'react-bootstrap';
 import { logUserAction } from '../utils/auditLogger';
 
 const Login = () => {
@@ -25,16 +24,19 @@ const Login = () => {
         users = JSON.parse(savedUsers);
       }
 
-      // Add default admin user if no users exist
-      if (users.length === 0) {
-        users = [
-          { email: 'admin@gov.eg', password: 'admin123', name: 'Admin User', role: 'admin' }
-        ];
+      // Always ensure default admin user exists
+      const adminUser = { email: 'admin@gov.eg', password: 'admin123', name: 'Admin User', role: 'admin' };
+      const adminExists = users.some(u => u.email === adminUser.email);
+      if (!adminExists) {
+        users.push(adminUser);
         localStorage.setItem('housingUsers', JSON.stringify(users));
+        console.log('🔐 Added default admin user to existing users:', users);
       }
 
-      // Find user by email
+      // Find user by email and password
       const user = users.find(u => u.email === email && u.password === password);
+      console.log('🔐 Login attempt:', { email, password, userFound: !!user });
+      console.log('🔐 Available users:', users);
 
       if (user) {
         // Create mock token
@@ -45,6 +47,7 @@ const Login = () => {
         // Log real audit entry for login
         logUserAction(user._id || 'unknown', user.name, 'login', user.name);
         
+        // Navigate to dashboard
         login(user, token);
         navigate('/dashboard');
       } else {
@@ -120,10 +123,10 @@ const Login = () => {
 
                   {/* Error Display */}
                   {error && (
-                    <Alert variant="danger" className="mb-3" style={{ borderRadius: '8px' }}>
+                    <div className="alert alert-danger mb-3" style={{ borderRadius: '8px' }}>
                       <i className="bi bi-exclamation-triangle me-2"></i>
                       {error}
-                    </Alert>
+                    </div>
                   )}
 
                   {/* Login Form */}
@@ -189,7 +192,22 @@ const Login = () => {
                         type="button"
                         className="btn btn-outline-secondary btn-lg"
                         style={{ borderRadius: '8px' }}
-                        onClick={() => { setEmail('admin@gov.eg'); setPassword('admin123'); }}
+                        onClick={() => {
+                          // Ensure demo user exists
+                          const savedUsers = localStorage.getItem('housingUsers');
+                          let users = [];
+                          if (savedUsers) {
+                            users = JSON.parse(savedUsers);
+                          }
+                          if (users.length === 0) {
+                            users = [
+                              { email: 'admin@gov.eg', password: 'admin123', name: 'Admin User', role: 'admin' }
+                            ];
+                            localStorage.setItem('housingUsers', JSON.stringify(users));
+                          }
+                          setEmail('admin@gov.eg');
+                          setPassword('admin123');
+                        }}
                       >
                         <i className="bi bi-key me-2"></i>
                         Use Demo

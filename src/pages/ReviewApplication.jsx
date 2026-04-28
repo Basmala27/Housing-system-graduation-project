@@ -2,6 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import dataService from '../services/dataService';
 
+// Format date helper function
+const formatDate = (dateString) => {
+  if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
 const ReviewApplication = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -14,235 +24,65 @@ const ReviewApplication = () => {
   const [updateLoading, setUpdateLoading] = useState(false);
   const [updateError, setUpdateError] = useState('');
 
-  // Simple fallback data
-  const fallbackApplication = {
-    _id: id || 'fallback-1',
-    name: 'mahmoud el sayed ahmed',
-    email: 'mahmoud@gamil.com',
-    phone: '01289215667',
-    projectName: 'new cairo',
-    status: 'pending',
-    createdAt: new Date('2026-04-02T20:36:16.919Z'),
-    nationalId: '12345678955534',
-    familySize: 4,
-    income: 12000,
-    currentHousing: 'I live in Alexandria with my family',
-    documents: {
-      nationalIdCopy: 'uploaded',
-      incomeCertificate: 'uploaded',
-      birthCertificate: 'uploaded'
-    }
-  };
-
   // Load application data
   useEffect(() => {
-    console.log('Loading application with ID:', id);
-    
-    // Force refresh localStorage data
-    try {
-      const savedApplications = localStorage.getItem('housingApplications');
-      console.log('Raw localStorage data:', savedApplications);
-      
-      if (savedApplications) {
-        const applications = JSON.parse(savedApplications);
-        console.log('Parsed applications:', applications);
-        console.log('Looking for application with ID:', id);
-        console.log('Available application IDs:', applications.map(app => app._id || app.id));
-        
-        // Better ID matching - check both _id and id fields
-        const foundApplication = applications.find(app => {
-          const appId = app._id || app.id;
-          const appNationalId = app.nationalId;
-          
-          console.log('Checking application:', {
-            id: appId,
-            nationalId: appNationalId,
-            name: app.name,
-            status: app.status
-          });
-          
-          console.log('Looking for ID:', id, 'vs appId:', appId, 'Match:', appId === id);
-          
-          // Try exact ID match first
-          if (appId === id) {
-            console.log('✅ Found by exact ID match');
-            return true;
-          }
-          
-          // If not found by ID, try to find by national ID (in case ID is actually national ID)
-          if (appNationalId === id) {
-            console.log('✅ Found by national ID match');
-            return true;
-          }
-          
-          return false;
-        });
-        
-        // Get the actual application object that matched
-        const actualApplication = applications.find(app => {
-          const appId = app._id || app.id;
-          const appNationalId = app.nationalId;
-          return appId === id || appNationalId === id;
-        });
-        
-        console.log('Found application:', actualApplication);
-        
-        if (actualApplication) {
-          console.log('✅ Found application in localStorage:', actualApplication);
-          setApplication(actualApplication);
-          setLoading(false);
-          return;
-        } else {
-          console.log('⚠️ Application not found in localStorage');
-          console.log('Available IDs:', applications.map(app => ({ id: app._id || app.id, nationalId: app.nationalId, name: app.name })));
-        }
-      } else {
-        console.log('⚠️ No applications found in localStorage');
-      }
-    } catch (err) {
-      console.error('❌ Error loading from localStorage:', err);
-    }
-    
-    // Only use fallback if absolutely necessary
-    console.log('⚠️ Using fallback application data');
-    setApplication(fallbackApplication);
-    setLoading(false);
-  }, [id]);
-
-  // Add refresh effect to check for data changes
-  useEffect(() => {
-    const checkForUpdates = () => {
+    const loadApplication = async () => {
       try {
-        const savedApplications = localStorage.getItem('housingApplications');
-        if (savedApplications) {
-          const applications = JSON.parse(savedApplications);
-          const foundApplication = applications.find(app => (app._id || app.id) === id);
-          
-          if (foundApplication && (!application || application._id !== foundApplication._id)) {
-            console.log('🔄 Application data updated, refreshing...');
-            setApplication(foundApplication);
-          }
-        }
+        setLoading(true);
+        const appData = dataService.getApplicationById(id);
+        setApplication(appData);
       } catch (err) {
-        console.error('❌ Error checking for updates:', err);
+        console.error('Error loading application:', err);
+        setUpdateError('Failed to load application');
+      } finally {
+        setLoading(false);
       }
     };
 
-    // Check immediately and then every 2 seconds
-    checkForUpdates();
-    const interval = setInterval(checkForUpdates, 2000);
-    
-    return () => clearInterval(interval);
-  }, [id, application?._id]);
+    loadApplication();
+  }, [id]);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const getStatusBadge = (status) => {
-    const badgeClass = {
-      pending: 'bg-warning',
-      approved: 'bg-success',
-      rejected: 'bg-danger'
-    }[status] || 'bg-secondary';
-
-    return <span className={`badge ${badgeClass}`}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>;
-  };
-
+  // Handle approve application
   const handleApprove = async () => {
-    if (!application) return;
-
     try {
       setUpdateLoading(true);
+      setUpdateError('');
       
-      // Update local state immediately
-      const updatedApplication = {
-        ...application,
-        status: 'approved',
-        reviewedAt: new Date().toISOString(),
-        reviewedBy: 'Admin User'
-      };
-      
-      setApplication(updatedApplication);
-      
-      // Save to localStorage
-      try {
-        const savedApplications = localStorage.getItem('housingApplications');
-        if (savedApplications) {
-          const applications = JSON.parse(savedApplications);
-          const updatedApplications = applications.map(app => 
-            app._id === application._id ? updatedApplication : app
-          );
-          localStorage.setItem('housingApplications', JSON.stringify(updatedApplications));
-          console.log('✅ Application approved and saved to localStorage');
-        }
-      } catch (err) {
-        console.error('❌ Error saving to localStorage:', err);
-      }
-      
+      dataService.updateApplicationStatus(id, 'approved');
       setSuccessMessage('Application approved successfully!');
       
-      // Navigate after 2 seconds
-      setTimeout(() => {
-        navigate('/applications');
-      }, 2000);
-    } catch (error) {
-      console.error('Error approving application:', error);
+      // Update local state
+      if (application) {
+        setApplication({ ...application, status: 'approved' });
+      }
+    } catch (err) {
+      setUpdateError('Failed to approve application');
     } finally {
       setUpdateLoading(false);
     }
   };
 
+  // Handle reject application
   const handleReject = async () => {
-    if (!application || !rejectReason.trim()) {
-      alert('Please provide a rejection reason');
+    if (!rejectReason.trim()) {
+      setUpdateError('Please provide a reason for rejection');
       return;
     }
 
     try {
       setUpdateLoading(true);
+      setUpdateError('');
       
-      // Update local state immediately
-      const updatedApplication = {
-        ...application,
-        status: 'rejected',
-        rejectionReason: rejectReason.trim(),
-        reviewedAt: new Date().toISOString(),
-        reviewedBy: 'Admin User'
-      };
-      
-      setApplication(updatedApplication);
-      
-      // Save to localStorage
-      try {
-        const savedApplications = localStorage.getItem('housingApplications');
-        if (savedApplications) {
-          const applications = JSON.parse(savedApplications);
-          const updatedApplications = applications.map(app => 
-            app._id === application._id ? updatedApplication : app
-          );
-          localStorage.setItem('housingApplications', JSON.stringify(updatedApplications));
-          console.log('✅ Application rejected and saved to localStorage');
-        }
-      } catch (err) {
-        console.error('❌ Error saving to localStorage:', err);
-      }
-      
+      dataService.updateApplicationStatus(id, 'rejected', rejectReason);
       setSuccessMessage('Application rejected successfully!');
+      setShowRejectReason(false);
       
-      // Navigate after 2 seconds
-      setTimeout(() => {
-        navigate('/applications');
-      }, 2000);
-    } catch (error) {
-      console.error('Error rejecting application:', error);
+      // Update local state
+      if (application) {
+        setApplication({ ...application, status: 'rejected', rejectionReason: rejectReason });
+      }
+    } catch (err) {
+      setUpdateError('Failed to reject application');
     } finally {
       setUpdateLoading(false);
     }
@@ -250,161 +90,77 @@ const ReviewApplication = () => {
 
   if (loading) {
     return (
-      <div className="container p-4">
-        <div className="text-center">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="mt-2">Loading application details...</p>
+      <div className="text-center py-5">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
         </div>
+        <p className="mt-3">Loading application details...</p>
       </div>
     );
   }
 
   if (!application) {
     return (
-      <div className="container p-4">
+      <div className="text-center py-5">
         <div className="alert alert-warning">
-          <i className="bi bi-exclamation-triangle me-2"></i>
-          Application not found
+          <h4>Application Not Found</h4>
+          <p>The application with ID "{id}" was not found.</p>
+          <Link to="/applications" className="btn btn-primary">
+            Back to Applications
+          </Link>
         </div>
-        <Link to="/applications" className="btn btn-outline-secondary">
-          <i className="bi bi-arrow-left me-2"></i>
-          Back to Applications
-        </Link>
       </div>
     );
   }
 
   return (
-    <div className="container p-4">
-      {/* Success Message */}
+    <div className="container py-4">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2 className="fw-bold text-primary">
+          <i className="bi bi-file-earmark-text me-2"></i>
+          Review Application
+        </h2>
+        <Link to="/applications" className="btn btn-outline-secondary">
+          <i className="bi bi-arrow-left me-2"></i>
+          Back to Applications
+        </Link>
+      </div>
+
       {successMessage && (
-        <div className="alert alert-success alert-dismissible fade show" role="alert">
-          <i className="bi bi-check-circle me-2"></i>
+        <div className="alert alert-success" role="alert">
           {successMessage}
-          <button type="button" className="btn-close" onClick={() => setSuccessMessage('')}></button>
         </div>
       )}
 
-      {/* Update Error */}
       {updateError && (
-        <div className="alert alert-danger alert-dismissible fade show" role="alert">
-          <i className="bi bi-exclamation-triangle me-2"></i>
+        <div className="alert alert-danger" role="alert">
           {updateError}
-          <button type="button" className="btn-close" onClick={() => setUpdateError('')}></button>
         </div>
       )}
 
-      {/* Loading State */}
-      {loading && (
-        <div className="text-center py-5">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <div className="mt-2 text-muted">Loading application details...</div>
-        </div>
-      )}
-
-      {/* Application Not Found */}
-      {!loading && !application && (
-        <div className="text-center py-5">
-          <i className="bi bi-exclamation-triangle text-warning" style={{ fontSize: '3rem' }}></i>
-          <h4 className="mt-3 text-warning">Application Not Found</h4>
-          <p className="text-muted">The application you're looking for doesn't exist or has been removed.</p>
-          <Link to="/applications" className="btn btn-outline-primary">
-            <i className="bi bi-arrow-left me-2"></i>
-            Back to Applications
-          </Link>
-        </div>
-      )}
-
-      {/* Application Details */}
-      {!loading && application && (
-        <>
-          {/* Header */}
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <div>
-              <h2 className="mb-1">Application Review</h2>
-              <p className="text-muted mb-0">
-                Application #{application._id ? application._id.slice(-8) : 'Unknown'} • 
-                Submitted {application.createdAt ? formatDate(application.createdAt) : 'Unknown date'}
-              </p>
+      <div className="row">
+        <div className="col-md-8">
+          <div className="card shadow mb-4">
+            <div className="card-header bg-primary text-white">
+              <h5 className="mb-0">Application Details</h5>
             </div>
-            <div>
-              {getStatusBadge(application.status || 'pending')}
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <div className="mb-4">
-            <Link to="/applications" className="btn btn-outline-secondary">
-              <i className="bi bi-arrow-left me-2"></i>
-              Back to Applications
-            </Link>
-          </div>
-
-          {/* Application Info */}
-          <div className="row">
-            {/* Applicant Information */}
-            <div className="col-md-6 mb-4">
-              <div className="card h-100">
-                <div className="card-header bg-light">
-                  <h5 className="mb-0">
-                    <i className="bi bi-person me-2"></i>
-                    Applicant Information
-                  </h5>
+            <div className="card-body">
+              <div className="row mb-3">
+                <div className="col-md-6">
+                  <strong>Application ID:</strong> {application._id}
                 </div>
-                <div className="card-body">
-                  <div className="row mb-3">
-                    <div className="col-sm-4">
-                      <strong>Name:</strong>
-                    </div>
-                    <div className="col-sm-8">{application.name || 'N/A'}</div>
-                  </div>
-                  <div className="row mb-3">
-                    <div className="col-sm-4">
-                      <strong>Email:</strong>
-                    </div>
-                    <div className="col-sm-8">{application.email || 'N/A'}</div>
-                  </div>
-                  <div className="row mb-3">
-                    <div className="col-sm-4">
-                      <strong>Phone:</strong>
-                    </div>
-                    <div className="col-sm-8">{application.phone || 'N/A'}</div>
-                  </div>
-                  <div className="row mb-3">
-                    <div className="col-sm-4">
-                      <strong>National ID:</strong>
-                    </div>
-                    <div className="col-sm-8">{application.nationalId || 'N/A'}</div>
-                  </div>
-                  <div className="row mb-3">
-                    <div className="col-sm-4">
-                      <strong>Family Size:</strong>
-                    </div>
-                    <div className="col-sm-8">{application.familySize || 'N/A'}</div>
-                  </div>
-                  <div className="row mb-3">
-                    <div className="col-sm-4">
-                      <strong>Income:</strong>
-                    </div>
-                    <div className="col-sm-8">${application.income || 'N/A'}/month</div>
-                  </div>
-                  <div className="row">
-                    <div className="col-sm-4">
-                      <strong>Current Housing:</strong>
-                    </div>
-                    <div className="col-sm-8">{application.currentHousing || 'N/A'}</div>
-                  </div>
+                <div className="col-md-6">
+                  <strong>Status:</strong>
+                  <span className={`badge bg-${
+                    application.status === 'approved' ? 'success' : 
+                    application.status === 'rejected' ? 'danger' : 'warning'
+                  } ms-2`}>
+                    {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
+                  </span>
                 </div>
               </div>
-            </div>
 
-            {/* Project Information */}
-            <div className="col-md-6 mb-4">
-              <div className="card h-100">
+              <div className="card border-0 shadow-sm mb-4">
                 <div className="card-header bg-light">
                   <h5 className="mb-0">
                     <i className="bi bi-building me-2"></i>
@@ -412,294 +168,145 @@ const ReviewApplication = () => {
                   </h5>
                 </div>
                 <div className="card-body">
-                  <div className="row mb-3">
-                    <div className="col-sm-4">
-                      <strong>Project:</strong>
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Project Name</label>
+                      <p className="form-control-plaintext">{application.projectName}</p>
                     </div>
-                    <div className="col-sm-8">{application.projectName || 'N/A'}</div>
-                  </div>
-                  <div className="row mb-3">
-                    <div className="col-sm-4">
-                      <strong>Status:</strong>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Location</label>
+                      <p className="form-control-plaintext">Cairo, Egypt</p>
                     </div>
-                    <div className="col-sm-8">{getStatusBadge(application.status || 'pending')}</div>
-                  </div>
-                  <div className="row mb-3">
-                    <div className="col-sm-4">
-                      <strong>Submitted:</strong>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Requested Unit Type</label>
+                      <p className="form-control-plaintext">{application.requestedUnitType || 'N/A'}</p>
                     </div>
-                    <div className="col-sm-8">{application.createdAt ? formatDate(application.createdAt) : 'N/A'}</div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Preferred Floor</label>
+                      <p className="form-control-plaintext">{application.preferredFloor || 'N/A'}</p>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Payment Method</label>
+                      <p className="form-control-plaintext">{application.paymentMethod || 'N/A'}</p>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Submission Date</label>
+                      <p className="form-control-plaintext">{formatDate(application.submittedDate)}</p>
+                    </div>
                   </div>
-                  {application.reviewedAt && (
-                    <>
-                      <div className="row mb-3">
-                        <div className="col-sm-4">
-                          <strong>Reviewed:</strong>
-                        </div>
-                        <div className="col-sm-8">{formatDate(application.reviewedAt)}</div>
-                      </div>
-                      <div className="row">
-                        <div className="col-sm-4">
-                          <strong>Reviewed By:</strong>
-                        </div>
-                        <div className="col-sm-8">{application.reviewedBy || 'N/A'}</div>
-                      </div>
-                    </>
+                  {application.specialRequirements && (
+                    <div className="mt-3">
+                      <label className="form-label">Special Requirements</label>
+                      <p className="form-control-plaintext">{application.specialRequirements}</p>
+                    </div>
                   )}
                 </div>
               </div>
             </div>
           </div>
-
-          {/* Supporting Documents */}
-          <div className="row mt-4">
-            <div className="col-12">
-              <div className="card">
-                <div className="card-header bg-light">
-                  <h5 className="mb-0">
-                    <i className="bi bi-file-earmark-text me-2"></i>
-                    Supporting Documents
-                  </h5>
-                </div>
-                <div className="card-body">
-                  <div className="row">
-                    <div className="col-md-4 mb-3">
-                      <div className="d-flex align-items-center">
-                        <i className="bi bi-file-earmark-pdf text-danger me-2" style={{ fontSize: '1.5rem' }}></i>
-                        <div>
-                          <strong>National ID Copy</strong>
-                          <br />
-                          {application.documents?.nationalIdCopy ? (
-                            application.documents.nationalIdCopy.startsWith('http') || application.documents.nationalIdCopy.startsWith('/uploads/') ? (
-                              <a 
-                                href={`http://localhost:5000${application.documents.nationalIdCopy}`} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="btn btn-sm btn-outline-primary mt-1"
-                              >
-                                <i className="bi bi-eye me-1"></i>
-                                View Document
-                              </a>
-                            ) : (
-                              <span className="badge bg-success mt-1">
-                                <i className="bi bi-check-circle me-1"></i>
-                                Uploaded
-                              </span>
-                            )
-                          ) : (
-                            <span className="badge bg-secondary mt-1">Not Uploaded</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-md-4 mb-3">
-                      <div className="d-flex align-items-center">
-                        <i className="bi bi-file-earmark-pdf text-danger me-2" style={{ fontSize: '1.5rem' }}></i>
-                        <div>
-                          <strong>Income Certificate</strong>
-                          <br />
-                          {application.documents?.incomeCertificate ? (
-                            application.documents.incomeCertificate.startsWith('http') || application.documents.incomeCertificate.startsWith('/uploads/') ? (
-                              <a 
-                                href={`http://localhost:5000${application.documents.incomeCertificate}`} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="btn btn-sm btn-outline-primary mt-1"
-                              >
-                                <i className="bi bi-eye me-1"></i>
-                                View Document
-                              </a>
-                            ) : (
-                              <span className="badge bg-success mt-1">
-                                <i className="bi bi-check-circle me-1"></i>
-                                Uploaded
-                              </span>
-                            )
-                          ) : (
-                            <span className="badge bg-secondary mt-1">Not Uploaded</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-md-4 mb-3">
-                      <div className="d-flex align-items-center">
-                        <i className="bi bi-file-earmark-pdf text-danger me-2" style={{ fontSize: '1.5rem' }}></i>
-                        <div>
-                          <strong>Birth Certificate</strong>
-                          <br />
-                          {application.documents?.birthCertificate ? (
-                            application.documents.birthCertificate.startsWith('http') || application.documents.birthCertificate.startsWith('/uploads/') ? (
-                              <a 
-                                href={`http://localhost:5000${application.documents.birthCertificate}`} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="btn btn-sm btn-outline-primary mt-1"
-                              >
-                                <i className="bi bi-eye me-1"></i>
-                                View Document
-                              </a>
-                            ) : (
-                              <span className="badge bg-success mt-1">
-                                <i className="bi bi-check-circle me-1"></i>
-                                Uploaded
-                              </span>
-                            )
-                          ) : (
-                            <span className="badge bg-secondary mt-1">Not Uploaded</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+        </div>
+        
+        <div className="col-md-4">
+          <div className="card shadow">
+            <div className="card-header bg-secondary text-white">
+              <h5 className="mb-0">Actions</h5>
+            </div>
+            <div className="card-body">
+              {application.status === 'pending' && (
+                <>
+                  <button
+                    className="btn btn-success w-100 mb-2"
+                    onClick={handleApprove}
+                    disabled={updateLoading}
+                  >
+                    {updateLoading ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-check-circle me-2"></i>
+                        Approve Application
+                      </>
+                    )}
+                  </button>
                   
-                  {/* Other Documents */}
-                  {application.documents?.otherDocuments && application.documents.otherDocuments.length > 0 && (
-                    <div className="row mt-3">
-                      <div className="col-12">
-                        <h6 className="mb-3">Other Documents</h6>
-                        <div className="d-flex flex-wrap gap-2">
-                          {application.documents.otherDocuments.map((doc, index) => (
-                            <div key={index} className="border rounded p-2 bg-light">
-                              <small className="text-muted">
-                                {doc.originalName || `Document ${index + 1}`}
-                              </small>
-                              {doc.url && (
-                                <div className="mt-1">
-                                  <a 
-                                    href={`http://localhost:5000${doc.url}`} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="btn btn-sm btn-outline-primary"
-                                  >
-                                    <i className="bi bi-eye me-1"></i>
-                                    View
-                                  </a>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+                  <button
+                    className="btn btn-danger w-100"
+                    onClick={() => setShowRejectReason(true)}
+                    disabled={updateLoading}
+                  >
+                    <i className="bi bi-x-circle me-2"></i>
+                    Reject Application
+                  </button>
+                </>
+              )}
+              
+              {application.status !== 'pending' && (
+                <div className="text-center">
+                  <p className="text-muted mb-0">
+                    This application has been {application.status}.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {showRejectReason && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Reject Application</h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setShowRejectReason(false)}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label htmlFor="rejectReason" className="form-label">Reason for Rejection</label>
+                  <textarea
+                    className="form-control"
+                    id="rejectReason"
+                    rows="4"
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Please provide a reason for rejecting this application..."
+                  ></textarea>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowRejectReason(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={handleReject}
+                  disabled={updateLoading}
+                >
+                  {updateLoading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Rejecting...
+                    </>
+                  ) : (
+                    'Reject Application'
                   )}
-                </div>
+                </button>
               </div>
             </div>
           </div>
-
-          {/* Action Buttons */}
-          <div className="row mt-4">
-            <div className="col-12">
-              <div className="card">
-                <div className="card-header bg-light">
-                  <h5 className="mb-0">
-                    <i className="bi bi-gear me-2"></i>
-                    Application Review
-                  </h5>
-                </div>
-                <div className="card-body">
-                  <div className="row">
-                    <div className="col-md-8">
-                      <div className="d-flex gap-2">
-                        <button
-                          className="btn btn-success btn-lg px-4"
-                          style={{ 
-                            cursor: updateLoading ? 'not-allowed' : 'pointer',
-                            zIndex: 1000,
-                            pointerEvents: 'auto',
-                            position: 'relative'
-                          }}
-                          onClick={() => {
-                            console.log('🔥 Approve button clicked in ReviewApplication');
-                            
-                            // Confirm before approving
-                            if (application && window.confirm(`Are you sure you want to approve this application?\n\nApplicant: ${application.name}\nProject: ${application.projectName}\nEmail: ${application.email}`)) {
-                              handleApprove();
-                            }
-                          }}
-                          disabled={updateLoading}
-                        >
-                          {updateLoading ? (
-                            <>
-                              <span className="spinner-border spinner-border-sm me-2"></span>
-                              Processing...
-                            </>
-                          ) : (
-                            <>
-                              <i className="bi bi-check-circle me-2"></i>
-                              Approve Application
-                            </>
-                          )}
-                        </button>
-                        
-                        <button
-                          className="btn btn-danger btn-lg px-4"
-                          style={{ 
-                            cursor: updateLoading ? 'not-allowed' : 'pointer',
-                            zIndex: 1000,
-                            pointerEvents: 'auto',
-                            position: 'relative'
-                          }}
-                          onClick={() => {
-                            console.log('🔥 Reject button clicked in ReviewApplication');
-                            setShowRejectReason(true);
-                          }}
-                          disabled={updateLoading}
-                        >
-                          <i className="bi bi-x-circle me-2"></i>
-                          Reject Application
-                        </button>
-                      </div>
-
-                      {/* Rejection Reason */}
-                      {showRejectReason && (
-                        <div className="mt-4 p-3 bg-light rounded">
-                          <h6 className="mb-3">Rejection Reason</h6>
-                          <textarea
-                            className="form-control"
-                            rows="4"
-                            placeholder="Please provide a detailed reason for rejection..."
-                            value={rejectReason}
-                            onChange={(e) => setRejectReason(e.target.value)}
-                          ></textarea>
-                          <div className="mt-3 d-flex gap-2">
-                            <button
-                              className="btn btn-danger"
-                              onClick={handleReject}
-                              disabled={updateLoading || !rejectReason.trim()}
-                            >
-                              {updateLoading ? (
-                                <>
-                                  <span className="spinner-border spinner-border-sm me-2"></span>
-                                  Processing...
-                                </>
-                              ) : (
-                                <>
-                                  <i className="bi bi-x-circle me-2"></i>
-                                  Submit Rejection
-                                </>
-                              )}
-                            </button>
-                            <button
-                              className="btn btn-outline-secondary"
-                              onClick={() => {
-                                setShowRejectReason(false);
-                                setRejectReason('');
-                              }}
-                              disabled={updateLoading}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
+        </div>
       )}
     </div>
   );

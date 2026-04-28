@@ -19,15 +19,13 @@ import Projects from './pages/Projects';
 import Roles from './pages/Roles';
 import Audit from './pages/Audit';
 import Reports from './pages/Reports';
-import ApplicationDetails from './pages/ApplicationDetails';
+import Notifications from './pages/Notifications';
 
 // Components
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
-  console.log('App component is rendering...');
-  
   return (
     <AuthProvider>
       <Router>
@@ -59,13 +57,6 @@ function App() {
             <Route path="/applications/:id" element={
               <ProtectedRoute adminOnly={true}>
                 <Layout>
-                  <ApplicationDetails />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/review/:id" element={
-              <ProtectedRoute adminOnly={true}>
-                <Layout>
                   <ReviewApplication />
                 </Layout>
               </ProtectedRoute>
@@ -95,6 +86,13 @@ function App() {
               <ProtectedRoute adminOnly={true}>
                 <Layout>
                   <Reports />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/notifications" element={
+              <ProtectedRoute adminOnly={true}>
+                <Layout>
+                  <Notifications />
                 </Layout>
               </ProtectedRoute>
             } />

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Form, Button, Card, Alert, Container, Row, Col } from 'react-bootstrap';
 
 const Register = () => {
     const navigate = useNavigate();

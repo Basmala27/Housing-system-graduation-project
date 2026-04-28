@@ -99,6 +99,47 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Root route
+app.get('/', (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: 'Findoor Backend API is running',
+        version: '1.0.0',
+        endpoints: {
+            applications: '/api/applications',
+            projects: '/api/projects',
+            auth: '/api/auth',
+            upload: '/api/upload',
+            users: '/api/users',
+            auditLogs: '/api/auditLogs',
+            notifications: '/api/notifications',
+            health: '/api/health',
+            api: '/api'
+        },
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Root API endpoint
+app.get('/api', (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: 'Findoor Backend API is running',
+        version: '1.0.0',
+        endpoints: {
+            applications: '/api/applications',
+            projects: '/api/projects',
+            auth: '/api/auth',
+            upload: '/api/upload',
+            users: '/api/users',
+            auditLogs: '/api/auditLogs',
+            notifications: '/api/notifications',
+            health: '/api/health'
+        },
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
@@ -119,9 +160,9 @@ app.use('*', (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`🚀 Findoor Backend Server running on port ${PORT}`);
-    console.log(`📡 API Base URL: http://localhost:${PORT}/api`);
-    console.log(`🏥 Health Check: http://localhost:${PORT}/api/health`);
+    console.log(`🚀 Findoor Backend Server running on port ${5000}`);
+    console.log(`📡 API Base URL: http://localhost:${5000}/api`);
+    console.log(`🏥 Health Check: http://localhost:${5000}/api/health`);
 });
 
 module.exports = app;

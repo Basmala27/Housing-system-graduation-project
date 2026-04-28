@@ -20,6 +20,7 @@ const Layout = ({ children }) => {
     { path: '/roles', icon: 'bi-people', label: 'Roles' },
     { path: '/audit', icon: 'bi-clock-history', label: 'Audit Log' },
     { path: '/reports', icon: 'bi-graph-up', label: 'Reports' },
+    { path: '/notifications', icon: 'bi-bell', label: 'Notifications' },
   ];
 
   return (
@@ -95,8 +96,12 @@ const Layout = ({ children }) => {
                     {user?.name || 'Admin User'}
                   </button>
                   <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-                    <li><a className="dropdown-item" href="#"><i className="bi bi-person me-2"></i>Profile</a></li>
-                    <li><a className="dropdown-item" href="#"><i className="bi bi-gear me-2"></i>Settings</a></li>
+                    <li>
+                      <Link className="dropdown-item" to="/profile">
+                        <i className="bi bi-person me-2"></i>Profile
+                      </Link>
+                    </li>
+                    <li><a className="dropdown-item" href="#" onClick={(e) => e.preventDefault()}><i className="bi bi-gear me-2"></i>Settings</a></li>
                     <li><hr className="dropdown-divider" /></li>
                     <li>
                       <button className="dropdown-item text-danger" onClick={handleLogout}>

@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Button, Card, Alert, Container, Row, Col } from 'react-bootstrap';
+import { useAuth } from '../context/AuthContext';
+import dataService from '../services/dataService';
 
 const Profile = () => {
     const navigate = useNavigate();
-    const [user, setUser] = useState(null);
+    const { user, updateUser } = useAuth();
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
+        email: '',
+        role: '',
         profile: {
             address: '',
             dateOfBirth: '',
             occupation: '',
-            familySize: ''
+            familySize: '',
+            monthlyIncome: ''
         }
     });
     const [loading, setLoading] = useState(false);
@@ -21,44 +25,50 @@ const Profile = () => {
     const [isEditing, setIsEditing] = useState(false);
 
     useEffect(() => {
-        fetchUserProfile();
-    }, []);
-
-    const fetchUserProfile = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                navigate('/login');
-                return;
-            }
-
-            const response = await fetch('http://localhost:5000/api/auth/profile', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
+        if (user) {
+            setFormData({
+                name: user.name || '',
+                phone: user.phone || '',
+                email: user.email || '',
+                role: user.role || '',
+                profile: {
+                    address: user.profile?.address || '',
+                    dateOfBirth: user.profile?.dateOfBirth ? 
+                        new Date(user.profile.dateOfBirth).toISOString().split('T')[0] : '',
+                    occupation: user.profile?.occupation || '',
+                    familySize: user.profile?.familySize || '',
+                    monthlyIncome: user.profile?.monthlyIncome || ''
                 }
             });
+        }
+    }, [user]);
 
-            const data = await response.json();
+    const handleProfileUpdate = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSuccess('');
+        setLoading(true);
 
-            if (data.success) {
-                setUser(data.data.user);
-                setFormData({
-                    name: data.data.user.name,
-                    phone: data.data.user.phone,
-                    profile: {
-                        address: data.data.user.profile?.address || '',
-                        dateOfBirth: data.data.user.profile?.dateOfBirth ? 
-                            new Date(data.data.user.profile.dateOfBirth).toISOString().split('T')[0] : '',
-                        occupation: data.data.user.profile?.occupation || '',
-                        familySize: data.data.user.profile?.familySize || ''
-                    }
-                });
+        try {
+            // Update user in dataService
+            const updatedUser = dataService.updateUser(user.id, {
+                name: formData.name,
+                phone: formData.phone,
+                profile: formData.profile
+            });
+
+            if (updatedUser) {
+                // Update auth context
+                updateUser(updatedUser);
+                setSuccess('Profile updated successfully!');
+                setIsEditing(false);
             } else {
-                setError(data.message || 'Failed to fetch profile');
+                setError('Failed to update profile');
             }
         } catch (err) {
-            console.error('Profile fetch error:', err);
-            setError('Network error. Please try again.');
+            setError('Error updating profile. Please try again.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -89,32 +99,23 @@ const Profile = () => {
         setLoading(true);
 
         try {
-            const token = localStorage.getItem('token');
-            
-            const response = await fetch('http://localhost:5000/api/auth/profile', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(formData)
+            // Update user in dataService
+            const updatedUser = dataService.updateUser(user.id, {
+                name: formData.name,
+                phone: formData.phone,
+                profile: formData.profile
             });
 
-            const data = await response.json();
-
-            if (data.success) {
+            if (updatedUser) {
+                // Update auth context
+                updateUser(updatedUser);
                 setSuccess('Profile updated successfully!');
-                setUser(data.data.user);
                 setIsEditing(false);
-                
-                // Update localStorage user data
-                localStorage.setItem('user', JSON.stringify(data.data.user));
             } else {
-                setError(data.message || 'Failed to update profile');
+                setError('Failed to update profile');
             }
         } catch (err) {
-            console.error('Profile update error:', err);
-            setError('Network error. Please try again.');
+            setError('Error updating profile. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -140,179 +141,187 @@ const Profile = () => {
 
     if (!user) {
         return (
-            <Container className="py-5">
+            <div className="container py-5">
                 <div className="text-center">
                     <div className="spinner-border text-primary" role="status">
                         <span className="visually-hidden">Loading...</span>
                     </div>
                 </div>
-            </Container>
+            </div>
         );
     }
 
     return (
-        <Container className="py-5">
-            <Row className="justify-content-center">
-                <Col md={10} lg={8}>
-                    <Card className="shadow">
-                        <Card.Body className="p-4">
+        <div className="container py-5">
+            <div className="row justify-content-center">
+                <div className="col-md-10 col-lg-8">
+                    <div className="card shadow">
+                        <div className="card-body p-4">
                             <div className="d-flex justify-content-between align-items-center mb-4">
                                 <h2 className="fw-bold text-primary mb-0">
                                     <i className="bi bi-person-circle me-2"></i>
                                     My Profile
                                 </h2>
                                 {!isEditing && (
-                                    <Button
-                                        variant="outline-primary"
+                                    <button
+                                        className="btn btn-outline-primary"
                                         onClick={() => setIsEditing(true)}
                                     >
                                         <i className="bi bi-pencil-square me-2"></i>
                                         Edit Profile
-                                    </Button>
+                                    </button>
                                 )}
                             </div>
 
-                            {error && <Alert variant="danger">{error}</Alert>}
-                            {success && <Alert variant="success">{success}</Alert>}
+                            {error && <div className="alert alert-danger">{error}</div>}
+                            {success && <div className="alert alert-success">{success}</div>}
 
-                            <Form onSubmit={handleSubmit}>
-                                <Row>
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3">
-                                            <Form.Label>Full Name</Form.Label>
-                                            <Form.Control
+                            <form onSubmit={handleSubmit}>
+                                <div className="row">
+                                    <div className="col-md-6">
+                                        <div className="mb-3">
+                                            <label htmlFor="name" className="form-label">Full Name</label>
+                                            <input
                                                 type="text"
+                                                className="form-control"
+                                                id="name"
                                                 name="name"
                                                 value={formData.name}
                                                 onChange={handleChange}
                                                 disabled={!isEditing}
                                                 required
                                             />
-                                        </Form.Group>
-                                    </Col>
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3">
-                                            <Form.Label>Email Address</Form.Label>
-                                            <Form.Control
+                                        </div>
+                                    </div>
+                                    <div className="col-md-6">
+                                        <div className="mb-3">
+                                            <label htmlFor="email" className="form-label">Email Address</label>
+                                            <input
                                                 type="email"
+                                                className="form-control"
+                                                id="email"
                                                 value={user.email}
                                                 disabled
-                                                plaintext
                                                 readOnly
                                             />
-                                            <Form.Text className="text-muted">
-                                                Email cannot be changed
-                                            </Form.Text>
-                                        </Form.Group>
-                                    </Col>
-                                </Row>
+                                            <small className="text-muted">Email cannot be changed</small>
+                                        </div>
+                                    </div>
+                                </div>
 
-                                <Row>
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3">
-                                            <Form.Label>Phone Number</Form.Label>
-                                            <Form.Control
+                                <div className="row">
+                                    <div className="col-md-6">
+                                        <div className="mb-3">
+                                            <label htmlFor="phone" className="form-label">Phone Number</label>
+                                            <input
                                                 type="tel"
+                                                className="form-control"
+                                                id="phone"
                                                 name="phone"
                                                 value={formData.phone}
                                                 onChange={handleChange}
                                                 disabled={!isEditing}
-                                                required
                                             />
-                                        </Form.Group>
-                                    </Col>
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3">
-                                            <Form.Label>National ID</Form.Label>
-                                            <Form.Control
+                                        </div>
+                                    </div>
+                                    <div className="col-md-6">
+                                        <div className="mb-3">
+                                            <label htmlFor="nationalId" className="form-label">National ID</label>
+                                            <input
                                                 type="text"
+                                                className="form-control"
+                                                id="nationalId"
                                                 value={user.nationalId}
                                                 disabled
-                                                plaintext
                                                 readOnly
                                             />
-                                            <Form.Text className="text-muted">
-                                                National ID cannot be changed
-                                            </Form.Text>
-                                        </Form.Group>
-                                    </Col>
-                                </Row>
+                                            <small className="text-muted">National ID cannot be changed</small>
+                                        </div>
+                                    </div>
+                                </div>
 
-                                <Row>
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3">
-                                            <Form.Label>Account Type</Form.Label>
-                                            <Form.Control
+                                <div className="row">
+                                    <div className="col-md-6">
+                                        <div className="mb-3">
+                                            <label className="form-label">Account Type</label>
+                                            <input
                                                 type="text"
+                                                className="form-control"
                                                 value={user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                                                 disabled
-                                                plaintext
                                                 readOnly
                                             />
-                                        </Form.Group>
-                                    </Col>
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3">
-                                            <Form.Label>Account Status</Form.Label>
-                                            <Form.Control
+                                        </div>
+                                    </div>
+                                    <div className="col-md-6">
+                                        <div className="mb-3">
+                                            <label className="form-label">Account Status</label>
+                                            <input
                                                 type="text"
+                                                className="form-control"
                                                 value={user.isVerified ? 'Verified' : 'Not Verified'}
                                                 disabled
-                                                plaintext
                                                 readOnly
                                             />
-                                        </Form.Group>
-                                    </Col>
-                                </Row>
+                                        </div>
+                                    </div>
+                                </div>
 
                                 <hr className="my-4" />
 
                                 <h5 className="mb-3">Additional Information</h5>
 
-                                <Form.Group className="mb-3">
-                                    <Form.Label>Address</Form.Label>
-                                    <Form.Control
+                                <div className="mb-3">
+                                    <label htmlFor="address" className="form-label">Address</label>
+                                    <input
                                         type="text"
+                                        className="form-control"
+                                        id="address"
                                         name="profile.address"
                                         value={formData.profile.address}
                                         onChange={handleChange}
                                         disabled={!isEditing}
                                         placeholder="Enter your address"
                                     />
-                                </Form.Group>
+                                </div>
 
-                                <Row>
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3">
-                                            <Form.Label>Date of Birth</Form.Label>
-                                            <Form.Control
+                                <div className="row">
+                                    <div className="col-md-6">
+                                        <div className="mb-3">
+                                            <label htmlFor="dateOfBirth" className="form-label">Date of Birth</label>
+                                            <input
                                                 type="date"
+                                                className="form-control"
+                                                id="dateOfBirth"
                                                 name="profile.dateOfBirth"
                                                 value={formData.profile.dateOfBirth}
                                                 onChange={handleChange}
                                                 disabled={!isEditing}
                                             />
-                                        </Form.Group>
-                                    </Col>
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3">
-                                            <Form.Label>Occupation</Form.Label>
-                                            <Form.Control
+                                        </div>
+                                    </div>
+                                    <div className="col-md-6">
+                                        <div className="mb-3">
+                                            <label htmlFor="occupation" className="form-label">Occupation</label>
+                                            <input
                                                 type="text"
+                                                className="form-control"
+                                                id="occupation"
                                                 name="profile.occupation"
                                                 value={formData.profile.occupation}
                                                 onChange={handleChange}
                                                 disabled={!isEditing}
-                                                placeholder="Enter your occupation"
                                             />
-                                        </Form.Group>
-                                    </Col>
-                                </Row>
+                                        </div>
+                                    </div>
+                                </div>
 
-                                <Form.Group className="mb-4">
-                                    <Form.Label>Family Size</Form.Label>
-                                    <Form.Control
+                                <div className="mb-4">
+                                    <label htmlFor="familySize" className="form-label">Family Size</label>
+                                    <input
                                         type="number"
+                                        className="form-control"
+                                        id="familySize"
                                         name="profile.familySize"
                                         value={formData.profile.familySize}
                                         onChange={handleChange}
@@ -321,12 +330,12 @@ const Profile = () => {
                                         max="20"
                                         placeholder="Number of family members"
                                     />
-                                </Form.Group>
+                                </div>
 
                                 {isEditing && (
                                     <div className="d-flex gap-2">
-                                        <Button
-                                            variant="primary"
+                                        <button
+                                            className="btn btn-primary"
                                             type="submit"
                                             disabled={loading}
                                         >
@@ -341,18 +350,18 @@ const Profile = () => {
                                                     Save Changes
                                                 </>
                                             )}
-                                        </Button>
-                                        <Button
-                                            variant="secondary"
+                                        </button>
+                                        <button
+                                            className="btn btn-secondary"
                                             onClick={handleCancel}
                                             disabled={loading}
                                         >
                                             <i className="bi bi-x-circle me-2"></i>
                                             Cancel
-                                        </Button>
+                                        </button>
                                     </div>
                                 )}
-                            </Form>
+                            </form>
 
                             <div className="mt-4 pt-4 border-top">
                                 <small className="text-muted">
@@ -363,11 +372,11 @@ const Profile = () => {
                                     )}
                                 </small>
                             </div>
-                        </Card.Body>
-                    </Card>
-                </Col>
-            </Row>
-        </Container>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 };
 

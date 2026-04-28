@@ -1,62 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import dataService from '../services/dataService';
 
 const Roles = () => {
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      name: "Admin User",
-      email: "admin@gov.eg",
-      role: "Admin",
-      status: "active",
-      lastLogin: "2024-01-20 14:30:00",
-      department: "Housing Authority"
-    },
-    {
-      id: 2,
-      name: "Sarah Ahmed",
-      email: "sarah.ahmed@gov.eg",
-      role: "Reviewer",
-      status: "active",
-      lastLogin: "2024-01-20 10:15:00",
-      department: "Application Review"
-    },
-    {
-      id: 3,
-      name: "Mohamed Hassan",
-      email: "mohamed.hassan@gov.eg",
-      role: "Reviewer",
-      status: "inactive",
-      lastLogin: "2024-01-15 16:45:00",
-      department: "Application Review"
-    },
-    {
-      id: 4,
-      name: "Fatma Ali",
-      email: "fatma.ali@gov.eg",
-      role: "Admin",
-      status: "active",
-      lastLogin: "2024-01-19 09:20:00",
-      department: "Housing Authority"
-    },
-    {
-      id: 5,
-      name: "Omar Khalid",
-      email: "omar.khalid@gov.eg",
-      role: "Reviewer",
-      status: "active",
-      lastLogin: "2024-01-20 13:00:00",
-      department: "Application Review"
-    },
-    {
-      id: 6,
-      name: "Nadia Mahmoud",
-      email: "nadia.mahmoud@gov.eg",
-      role: "Viewer",
-      status: "active",
-      lastLogin: "2024-01-18 11:30:00",
-      department: "Reports"
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Load users using data service
+  const loadUsers = () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const usersData = dataService.getUsers();
+      console.log('Loading users from data service:', usersData.length);
+      setUsers(usersData);
+    } catch (err) {
+      console.error('Error loading users:', err);
+      setError('Failed to load users. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
+
+  // Setup data service subscription and initial load
+  useEffect(() => {
+    loadUsers();
+    
+    // Subscribe to data changes for live updates
+    const unsubscribe = dataService.subscribe((changeType, data, cache) => {
+      console.log('Roles received data change:', changeType);
+      // Always refetch to ensure data consistency
+      loadUsers();
+    });
+    
+    return () => unsubscribe();
+  }, []);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -68,14 +47,26 @@ const Roles = () => {
   });
 
   const handleToggleStatus = (userId) => {
-    setUsers(prevUsers => 
-      prevUsers.map(user => 
-        user.id === userId 
-          ? { ...user, status: user.status === 'active' ? 'inactive' : 'active' }
-          : user
-      )
-    );
-    alert('User status toggled successfully!');
+    try {
+      // Get current user data and toggle status
+      const currentUser = dataService.getUserById(userId);
+      if (currentUser) {
+        const newStatus = currentUser.status === 'active' ? 'inactive' : 'active';
+        
+        // Update using dataService
+        const updatedUser = dataService.updateUser(userId, { ...currentUser, status: newStatus });
+        if (updatedUser) {
+          console.log('User status updated successfully:', updatedUser);
+          alert('User status toggled successfully!');
+        } else {
+          console.error('Failed to update user status');
+          alert('Failed to update user status');
+        }
+      }
+    } catch (err) {
+      console.error('Error toggling user status:', err);
+      alert('Error toggling user status');
+    }
   };
 
   const handleEditUser = (user) => {
@@ -91,8 +82,20 @@ const Roles = () => {
 
   const handleDeleteUser = (userId) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
-      setUsers(prevUsers => prevUsers.filter(user => user.id !== userId));
-      alert('User deleted successfully!');
+      try {
+        // Delete using dataService
+        const deletedUser = dataService.deleteUser(userId);
+        if (deletedUser) {
+          console.log('User deleted successfully:', deletedUser);
+          alert('User deleted successfully!');
+        } else {
+          console.error('Failed to delete user');
+          alert('Failed to delete user');
+        }
+      } catch (err) {
+        console.error('Error deleting user:', err);
+        alert('Error deleting user');
+      }
     }
   };
 
@@ -102,31 +105,44 @@ const Roles = () => {
       return;
     }
 
-    if (editingUser) {
-      // Update existing user
-      setUsers(prevUsers => 
-        prevUsers.map(user => 
-          user.id === editingUser.id 
-            ? { ...user, ...newUser }
-            : user
-        )
-      );
-      alert('User updated successfully!');
-    } else {
-      // Add new user
-      const userToAdd = {
-        ...newUser,
-        id: Date.now(),
-        status: 'active',
-        lastLogin: new Date().toISOString()
-      };
-      setUsers(prevUsers => [userToAdd, ...prevUsers]);
-      alert('User added successfully!');
+    try {
+      if (editingUser) {
+        // Update existing user using dataService
+        const updatedUser = dataService.updateUser(editingUser.id, { ...editingUser, ...newUser });
+        if (updatedUser) {
+          console.log('User updated successfully:', updatedUser);
+          alert('User updated successfully!');
+        } else {
+          console.error('Failed to update user');
+          alert('Failed to update user');
+        }
+      } else {
+        // Add new user using dataService
+        const userToAdd = {
+          ...newUser,
+          id: Date.now().toString(),
+          status: 'active',
+          lastLogin: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          isVerified: false
+        };
+        const addedUser = dataService.addUser(userToAdd);
+        if (addedUser) {
+          console.log('User added successfully:', addedUser);
+          alert('User added successfully!');
+        } else {
+          console.error('Failed to add user');
+          alert('Failed to add user');
+        }
+      }
+      
+      setShowAddModal(false);
+      setEditingUser(null);
+      setNewUser({ name: '', email: '', role: 'Reviewer', department: '' });
+    } catch (err) {
+      console.error('Error saving user:', err);
+      alert('Error saving user');
     }
-    
-    setShowAddModal(false);
-    setEditingUser(null);
-    setNewUser({ name: '', email: '', role: 'Reviewer', department: '' });
   };
 
   const getRoleBadge = (role) => {
@@ -144,6 +160,33 @@ const Roles = () => {
       ? <span className="badge bg-success">Active</span>
       : <span className="badge bg-secondary">Inactive</span>;
   };
+
+  if (loading) {
+    return (
+      <div className="container mt-4">
+        <div className="text-center">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <p className="mt-2 text-muted">Loading users...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mt-4">
+        <div className="alert alert-danger">
+          <h4><i className="bi bi-exclamation-triangle me-2"></i>Error Loading Users</h4>
+          <p>{error}</p>
+          <button className="btn btn-primary" onClick={loadUsers}>
+            <i className="bi bi-arrow-clockwise me-2"></i>Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="roles">

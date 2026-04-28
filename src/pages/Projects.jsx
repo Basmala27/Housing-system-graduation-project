@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import dataService from '../services/dataService';
 
 const Projects = () => {
   const [showModal, setShowModal] = useState(false);
@@ -28,19 +29,16 @@ const Projects = () => {
     }
   };
 
-  // Load projects from localStorage
-  const loadProjectsFromStorage = () => {
+  // Load projects from dataService
+  const loadProjectsFromService = () => {
     try {
-      const saved = localStorage.getItem('housingProjects');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        console.log('📥 Loaded projects from localStorage:', parsed.length);
-        return parsed;
-      }
+      const projects = dataService.getProjects();
+      console.log('📥 Loaded projects from dataService:', projects.length);
+      return projects;
     } catch (err) {
-      console.error('❌ Failed to load projects from localStorage:', err);
+      console.error('❌ Failed to load projects from dataService:', err);
+      return [];
     }
-    return null;
   };
 
   // Fallback projects data
@@ -107,24 +105,24 @@ const Projects = () => {
     }
   ];
 
-  // Fetch projects from localStorage or fallback
+  // Fetch projects from dataService
   const fetchProjects = () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Try to load from localStorage first
-      const savedProjects = loadProjectsFromStorage();
+      // Load projects from dataService
+      const projects = dataService.getProjects();
+      setProjectsList(projects);
       
-      if (savedProjects && savedProjects.length > 0) {
-        console.log('📥 Using saved projects from localStorage');
-        setProjectsList(savedProjects);
-      } else {
-        console.log('🔄 Using fallback projects data');
-        setProjectsList(fallbackProjects);
-        // Save fallback data to localStorage
-        saveProjectsToStorage(fallbackProjects);
-      }
+      // Subscribe to dataService changes for live updates
+      const unsubscribe = dataService.subscribe((changeType, data, cache) => {
+        if (changeType === 'project_added' || changeType === 'project_updated' || changeType === 'project_deleted') {
+          fetchProjects();
+        }
+      });
+      
+      return unsubscribe;
       
     } catch (err) {
       console.error('Error fetching projects:', err);
@@ -135,14 +133,17 @@ const Projects = () => {
   };
 
   useEffect(() => {
-    fetchProjects();
+    const unsubscribe = fetchProjects();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   const handleEdit = (project) => {
     setEditingProject(project);
     setFormData({
       ...project,
-      completionDate: project.completionDate ? new Date(project.completionDate).toISOString().split('T')[0] : ''
+      completionDate: project.timeline?.completionDate ? new Date(project.timeline.completionDate).toISOString().split('T')[0] : ''
     });
     setShowModal(true);
   };
@@ -152,13 +153,13 @@ const Projects = () => {
     setEditingProject(null);
     setFormData({
       name: '',
-      location: '',
-      totalUnits: '',
-      availableUnits: '',
-      priceRange: '',
+      location: { city: '', district: '', address: '' },
       type: 'Apartments',
       status: 'active',
-      completionDate: '',
+      development: { totalUnits: 0, availableUnits: 0, soldUnits: 0, phases: 1 },
+      pricing: { priceRange: '', unitTypes: [], downPayment: '10%', installmentYears: 5 },
+      timeline: { completionDate: '', deliveryDate: '', constructionProgress: 0 },
+      features: { amenities: [], areaRange: '', floors: 1 },
       description: ''
     });
     console.log('📝 Form data reset, opening modal...');
@@ -175,22 +176,22 @@ const Projects = () => {
       alert('Project name is required');
       return;
     }
-    if (!formData.location || formData.location.trim() === '') {
+    if (!formData.location?.city || formData.location.city.trim() === '') {
       console.log('❌ Location validation failed');
       alert('Project location is required');
       return;
     }
-    if (!formData.totalUnits || formData.totalUnits <= 0) {
+    if (!formData.development?.totalUnits || formData.development.totalUnits <= 0) {
       console.log('❌ Total units validation failed');
       alert('Total units must be greater than 0');
       return;
     }
-    if (!formData.availableUnits || formData.availableUnits < 0) {
+    if (!formData.development?.availableUnits || formData.development.availableUnits < 0) {
       console.log('❌ Available units validation failed');
       alert('Available units must be 0 or greater');
       return;
     }
-    if (!formData.priceRange || formData.priceRange.trim() === '') {
+    if (!formData.pricing?.priceRange || formData.pricing.priceRange.trim() === '') {
       console.log('❌ Price range validation failed');
       alert('Price range is required');
       return;
@@ -203,32 +204,22 @@ const Projects = () => {
       
       if (editingProject) {
         console.log('📝 Updating existing project:', editingProject._id);
-        // Update existing project in state
-        updatedProjects = projectsList.map(project => 
-          project._id === editingProject._id 
-            ? { ...project, ...formData }
-            : project
-        );
-        setProjectsList(updatedProjects);
-        console.log('✅ Project updated in state');
-        alert('Project updated successfully!');
+        // Update existing project using dataService
+        const updatedProject = dataService.updateProject(editingProject._id, formData);
+        if (updatedProject) {
+          console.log('✅ Project updated in dataService');
+          alert('Project updated successfully!');
+        } else {
+          console.error('❌ Failed to update project');
+          alert('Failed to update project');
+        }
       } else {
         console.log('➕ Adding new project...');
-        // Add new project to state with unique ID
-        const newProject = {
-          ...formData,
-          _id: `proj-${Date.now()}`, // Generate unique ID
-          createdAt: new Date().toISOString()
-        };
-        updatedProjects = [newProject, ...projectsList];
-        setProjectsList(updatedProjects);
-        console.log('✅ New project added to state:', newProject);
+        // Add new project using dataService
+        const newProject = dataService.addProject(formData);
+        console.log('✅ New project added to dataService:', newProject);
         alert('Project added successfully!');
       }
-      
-      // Save to localStorage immediately
-      saveProjectsToStorage(updatedProjects);
-      console.log('💾 Saved to localStorage');
       
       setShowModal(false);
       setEditingProject(null);
@@ -303,12 +294,15 @@ const Projects = () => {
   const handleDelete = async (projectId) => {
     if (window.confirm('Are you sure you want to delete this project?')) {
       try {
-        // Remove project from state and localStorage
-        const updatedProjects = projectsList.filter(project => project._id !== projectId);
-        setProjectsList(updatedProjects);
-        saveProjectsToStorage(updatedProjects);
-        
-        alert('Project deleted successfully!');
+        // Delete project using dataService
+        const deletedProject = dataService.deleteProject(projectId);
+        if (deletedProject) {
+          console.log('✅ Project deleted from dataService');
+          alert('Project deleted successfully!');
+        } else {
+          console.error('❌ Failed to delete project');
+          alert('Failed to delete project');
+        }
         
         // Try API call but don't fail if it doesn't work
         try {
@@ -420,25 +414,25 @@ const Projects = () => {
                           </div>
                         </div>
                       </td>
-                      <td>{project.location}</td>
+                      <td>{project.location?.city || 'Unknown Location'}</td>
                       <td>{project.type}</td>
                       <td>
                         <div>
-                          <span className="fw-semibold">{project.availableUnits}</span>
-                          <span className="text-muted"> / {project.totalUnits}</span>
+                          <span className="fw-semibold">{project.development?.availableUnits || 0}</span>
+                          <span className="text-muted"> / {project.development?.totalUnits || 0}</span>
                         </div>
                         <div className="progress mt-1" style={{ height: '4px' }}>
                           <div 
                             className="progress-bar bg-info" 
-                            style={{ width: `${((project.totalUnits - project.availableUnits) / project.totalUnits) * 100}%` }}
+                            style={{ width: `${((project.development?.totalUnits - project.development?.availableUnits) / project.development?.totalUnits) * 100 || 0}%` }}
                           ></div>
                         </div>
                       </td>
-                      <td>{project.priceRange}</td>
+                      <td>{project.pricing?.priceRange || 'N/A'}</td>
                       <td>{getStatusBadge(project.status)}</td>
                       <td>
                         <small className="text-muted">
-                          {new Date(project.completionDate).toLocaleDateString()}
+                          {project.timeline?.completionDate ? new Date(project.timeline.completionDate).toLocaleDateString() : 'N/A'}
                         </small>
                       </td>
                       <td>
@@ -505,13 +499,13 @@ const Projects = () => {
                     />
                   </div>
                   <div className="col-md-6">
-                    <label className="form-label">Location</label>
+                    <label className="form-label">Location (City)</label>
                     <input
                       type="text"
                       className="form-control"
-                      value={formData.location}
-                      onChange={(e) => setFormData({...formData, location: e.target.value})}
-                      placeholder="Enter location"
+                      value={formData.location?.city || ''}
+                      onChange={(e) => setFormData({...formData, location: {...formData.location, city: e.target.value}})}
+                      placeholder="Enter city"
                     />
                   </div>
                   <div className="col-md-4">
@@ -519,8 +513,8 @@ const Projects = () => {
                     <input
                       type="number"
                       className="form-control"
-                      value={formData.totalUnits}
-                      onChange={(e) => setFormData({...formData, totalUnits: e.target.value})}
+                      value={formData.development?.totalUnits || ''}
+                      onChange={(e) => setFormData({...formData, development: {...formData.development, totalUnits: parseInt(e.target.value) || 0}})}
                       placeholder="0"
                     />
                   </div>
@@ -529,8 +523,8 @@ const Projects = () => {
                     <input
                       type="number"
                       className="form-control"
-                      value={formData.availableUnits}
-                      onChange={(e) => setFormData({...formData, availableUnits: e.target.value})}
+                      value={formData.development?.availableUnits || ''}
+                      onChange={(e) => setFormData({...formData, development: {...formData.development, availableUnits: parseInt(e.target.value) || 0}})}
                       placeholder="0"
                     />
                   </div>
@@ -551,8 +545,8 @@ const Projects = () => {
                     <input
                       type="text"
                       className="form-control"
-                      value={formData.priceRange}
-                      onChange={(e) => setFormData({...formData, priceRange: e.target.value})}
+                      value={formData.pricing?.priceRange || ''}
+                      onChange={(e) => setFormData({...formData, pricing: {...formData.pricing, priceRange: e.target.value}})}
                       placeholder="e.g., 1M - 3M EGP"
                     />
                   </div>
@@ -573,8 +567,8 @@ const Projects = () => {
                     <input
                       type="date"
                       className="form-control"
-                      value={formData.completionDate}
-                      onChange={(e) => setFormData({...formData, completionDate: e.target.value})}
+                      value={formData.timeline?.completionDate || ''}
+                      onChange={(e) => setFormData({...formData, timeline: {...formData.timeline, completionDate: e.target.value}})}
                     />
                   </div>
                   <div className="col-12">

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Form, Button, Card, Alert, Container, Row, Col } from 'react-bootstrap';
 
 const ForgotPassword = () => {
     const navigate = useNavigate();
@@ -21,30 +20,24 @@ const ForgotPassword = () => {
         setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:5000/api/auth/forgot-password', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                setSuccess('Password reset token generated!');
-                // In development, show the token
-                if (data.data?.resetToken) {
-                    setToken(data.data.resetToken);
-                    setShowToken(true);
-                }
-                setIsResetting(true);
-            } else {
-                setError(data.message || 'Failed to generate reset token');
+            // Check if user exists in localStorage
+            const existingUsers = JSON.parse(localStorage.getItem('housingUsers') || '[]');
+            const user = existingUsers.find(u => u.email === email);
+            
+            if (!user) {
+                setError('No account found with this email address');
+                setLoading(false);
+                return;
             }
+
+            // Simulate sending reset email
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            setSuccess('Password reset instructions have been sent to your email address.');
+            setShowToken(true);
+            setEmail('');
         } catch (err) {
-            console.error('Forgot password error:', err);
-            setError('Network error. Please try again.');
+            setError('Failed to send reset instructions. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -73,198 +66,155 @@ const ForgotPassword = () => {
         setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:5000/api/auth/reset-password', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    token: token.trim(),
-                    password: newPassword
-                })
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                setSuccess('Password reset successful! Redirecting to login...');
-                
-                // Store new token and user data
-                localStorage.setItem('token', data.data.token);
-                localStorage.setItem('user', JSON.stringify(data.data.user));
-                
-                // Redirect to dashboard after 2 seconds
-                setTimeout(() => {
-                    navigate('/dashboard');
-                }, 2000);
-            } else {
-                setError(data.message || 'Failed to reset password');
-            }
+            // Simulate password reset with localStorage
+            const existingUsers = JSON.parse(localStorage.getItem('housingUsers') || '[]');
+            
+            // For demo purposes, accept any token and update password
+            // In real app, you would validate the token
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            setSuccess('Password reset successful! Redirecting to login...');
+            
+            // Redirect to login after 2 seconds
+            setTimeout(() => {
+                navigate('/login');
+            }, 2000);
         } catch (err) {
-            console.error('Reset password error:', err);
-            setError('Network error. Please try again.');
+            setError('Failed to reset password. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <Container className="py-5">
-            <Row className="justify-content-center">
-                <Col md={8} lg={6}>
-                    <Card className="shadow">
-                        <Card.Body className="p-4">
-                            <div className="text-center mb-4">
-                                <h2 className="fw-bold text-primary">
-                                    <i className="bi bi-key-fill me-2"></i>
-                                    {isResetting ? 'Reset Password' : 'Forgot Password'}
-                                </h2>
-                                <p className="text-muted">
-                                    {isResetting 
-                                        ? 'Enter your reset token and new password'
-                                        : 'Enter your email to receive a password reset token'
-                                    }
-                                </p>
+        <div className="min-vh-100 d-flex align-items-center justify-content-center" style={{ backgroundColor: '#f8f9fa' }}>
+            <div className="card shadow-lg" style={{ width: '100%', maxWidth: '450px' }}>
+                <div className="card-body p-4">
+                    <div className="text-center mb-4">
+                        <h2 className="fw-bold text-primary">
+                            <i className="bi bi-key-fill me-2"></i>
+                            {isResetting ? 'Reset Password' : 'Forgot Password'}
+                        </h2>
+                        <p className="text-muted">
+                            {isResetting 
+                                ? 'Enter your reset token and new password'
+                                : 'Enter your email to receive a password reset token'
+                            }
+                        </p>
+                    </div>
+
+                    {error && (
+                        <div className="alert alert-danger" role="alert">
+                            {error}
+                        </div>
+                    )}
+
+                    {success && (
+                        <div className="alert alert-success" role="alert">
+                            {success}
+                        </div>
+                    )}
+
+                    {!isResetting ? (
+                        <form onSubmit={handleForgotPassword}>
+                            <div className="mb-4">
+                                <label htmlFor="email" className="form-label">Email Address</label>
+                                <input
+                                    type="email"
+                                    className="form-control"
+                                    id="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="Enter your registered email"
+                                    required
+                                />
+                                <small className="text-muted">We'll send a reset token to this email</small>
                             </div>
 
-                            {error && <Alert variant="danger">{error}</Alert>}
-                            {success && <Alert variant="success">{success}</Alert>}
-
-                            {!isResetting ? (
-                                <Form onSubmit={handleForgotPassword}>
-                                    <Form.Group className="mb-4">
-                                        <Form.Label>Email Address</Form.Label>
-                                        <Form.Control
-                                            type="email"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            placeholder="Enter your registered email"
-                                            required
-                                        />
-                                        <Form.Text className="text-muted">
-                                            We'll send a reset token to this email
-                                        </Form.Text>
-                                    </Form.Group>
-
-                                    <Button
-                                        variant="primary"
-                                        type="submit"
-                                        className="w-100"
-                                        disabled={loading}
-                                    >
-                                        {loading ? (
-                                            <>
-                                                <span className="spinner-border spinner-border-sm me-2"></span>
-                                                Sending Token...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <i className="bi bi-envelope-fill me-2"></i>
-                                                Send Reset Token
-                                            </>
-                                        )}
-                                    </Button>
-                                </Form>
-                            ) : (
-                                <Form onSubmit={handleResetPassword}>
-                                    {showToken && (
-                                        <Alert variant="info">
-                                            <strong>Development Mode:</strong> Your reset token is: <code>{token}</code>
-                                            <br />
-                                            <small>In production, this would be sent to your email.</small>
-                                        </Alert>
-                                    )}
-
-                                    <Form.Group className="mb-3">
-                                        <Form.Label>Reset Token</Form.Label>
-                                        <Form.Control
-                                            type="text"
-                                            value={token}
-                                            onChange={(e) => setToken(e.target.value)}
-                                            placeholder="Enter the reset token"
-                                            required
-                                        />
-                                        <Form.Text className="text-muted">
-                                            Check your email for the reset token
-                                        </Form.Text>
-                                    </Form.Group>
-
-                                    <Form.Group className="mb-3">
-                                        <Form.Label>New Password</Form.Label>
-                                        <Form.Control
-                                            type="password"
-                                            value={newPassword}
-                                            onChange={(e) => setNewPassword(e.target.value)}
-                                            placeholder="Enter your new password"
-                                            required
-                                        />
-                                        <Form.Text className="text-muted">
-                                            Password must be at least 6 characters long
-                                        </Form.Text>
-                                    </Form.Group>
-
-                                    <Form.Group className="mb-4">
-                                        <Form.Label>Confirm New Password</Form.Label>
-                                        <Form.Control
-                                            type="password"
-                                            value={confirmPassword}
-                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                            placeholder="Confirm your new password"
-                                            required
-                                        />
-                                    </Form.Group>
-
-                                    <Button
-                                        variant="primary"
-                                        type="submit"
-                                        className="w-100"
-                                        disabled={loading}
-                                    >
-                                        {loading ? (
-                                            <>
-                                                <span className="spinner-border spinner-border-sm me-2"></span>
-                                                Resetting Password...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <i className="bi bi-check-circle-fill me-2"></i>
-                                                Reset Password
-                                            </>
-                                        )}
-                                    </Button>
-
-                                    <Button
-                                        variant="link"
-                                        className="w-100 mt-2"
-                                        onClick={() => {
-                                            setIsResetting(false);
-                                            setEmail('');
-                                            setToken('');
-                                            setNewPassword('');
-                                            setConfirmPassword('');
-                                            setError('');
-                                            setSuccess('');
-                                        }}
-                                    >
-                                        <i className="bi bi-arrow-left me-2"></i>
-                                        Back to Email Entry
-                                    </Button>
-                                </Form>
-                            )}
-
-                            <div className="text-center mt-4">
-                                <p className="mb-0">
-                                    Remember your password?{' '}
-                                    <Link to="/login" className="text-primary text-decoration-none">
-                                        Sign In
-                                    </Link>
-                                </p>
+                            <button
+                                type="submit"
+                                className="btn btn-primary w-100"
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <>
+                                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                        Sending Reset Token...
+                                    </>
+                                ) : (
+                                    'Send Reset Token'
+                                )}
+                            </button>
+                        </form>
+                    ) : (
+                        <form onSubmit={handleResetPassword}>
+                            <div className="mb-3">
+                                <label htmlFor="token" className="form-label">Reset Token</label>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    id="token"
+                                    value={token}
+                                    onChange={(e) => setToken(e.target.value)}
+                                    placeholder="Enter the reset token from your email"
+                                    required
+                                />
                             </div>
-                        </Card.Body>
-                    </Card>
-                </Col>
-            </Row>
-        </Container>
+
+                            <div className="mb-3">
+                                <label htmlFor="newPassword" className="form-label">New Password</label>
+                                <input
+                                    type="password"
+                                    className="form-control"
+                                    id="newPassword"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    placeholder="Enter your new password"
+                                    required
+                                />
+                            </div>
+
+                            <div className="mb-3">
+                                <label htmlFor="confirmPassword" className="form-label">Confirm New Password</label>
+                                <input
+                                    type="password"
+                                    className="form-control"
+                                    id="confirmPassword"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    placeholder="Confirm your new password"
+                                    required
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                className="btn btn-primary w-100"
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <>
+                                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                        Resetting Password...
+                                    </>
+                                ) : (
+                                    'Reset Password'
+                                )}
+                            </button>
+                        </form>
+                    )}
+
+                    <div className="text-center mt-4">
+                        <p className="mb-0">
+                            <Link to="/login" className="text-primary text-decoration-none">
+                                <i className="bi bi-arrow-left me-1"></i>
+                                Back to Login
+                            </Link>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 };
 

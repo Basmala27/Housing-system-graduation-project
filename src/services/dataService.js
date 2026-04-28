@@ -19,15 +19,43 @@ class DataService {
     this.setupStorageSync();
   }
 
-  // Load initial data from data.json
+  // Load initial data from data.json and localStorage
   loadInitialData() {
-    this.cache = {
-      users: [...(dataJson.users || [])],
-      projects: [...(dataJson.projects || [])],
-      applications: [...(dataJson.applications || [])],
-      auditLogs: [...(dataJson.auditLogs || [])],
-      notifications: [...(dataJson.notifications || [])]
-    };
+    // Try to load saved data from localStorage first
+    try {
+      const savedApplications = localStorage.getItem('dataJsonApplications');
+      const savedUsers = localStorage.getItem('dataJsonUsers');
+      const savedProjects = localStorage.getItem('dataJsonProjects');
+      const savedAuditLogs = localStorage.getItem('dataJsonAuditLogs');
+      const savedNotifications = localStorage.getItem('dataJsonNotifications');
+      
+      this.cache = {
+        users: savedUsers ? JSON.parse(savedUsers) : [...(dataJson.users || [])],
+        projects: savedProjects ? JSON.parse(savedProjects) : [...(dataJson.projects || [])],
+        applications: savedApplications ? JSON.parse(savedApplications) : [...(dataJson.applications || [])],
+        auditLogs: savedAuditLogs ? JSON.parse(savedAuditLogs) : [...(dataJson.auditLogs || [])],
+        notifications: savedNotifications ? JSON.parse(savedNotifications) : [...(dataJson.notifications || [])]
+      };
+      
+      console.log('Loaded data from localStorage:', {
+        applications: this.cache.applications.length,
+        users: this.cache.users.length,
+        projects: this.cache.projects.length,
+        auditLogs: this.cache.auditLogs.length,
+        notifications: this.cache.notifications.length
+      });
+    } catch (err) {
+      console.error('Error loading from localStorage, using default data:', err);
+      // Fallback to default data
+      this.cache = {
+        users: [...(dataJson.users || [])],
+        projects: [...(dataJson.projects || [])],
+        applications: [...(dataJson.applications || [])],
+        auditLogs: [...(dataJson.auditLogs || [])],
+        notifications: [...(dataJson.notifications || [])]
+      };
+    }
+    
     this.lastUpdate = new Date();
     this.applyPersistedChanges();
     this.notifySubscribers('initial_load');
@@ -151,6 +179,51 @@ class DataService {
     return newApplication;
   }
 
+  // Get application by ID with enriched data
+  getApplicationById(id) {
+    const application = this.cache.applications.find(app => 
+      app.id === id || app._id === id
+    );
+    
+    if (!application) {
+      return null;
+    }
+    
+    const user = this.cache.users.find(u => u.id === application.userId);
+    const project = this.cache.projects.find(p => p.id === application.projectId);
+    
+    return {
+      ...application,
+      // User information
+      applicantName: user ? user.name : 'Unknown User',
+      email: user ? user.email : 'N/A',
+      phone: user ? user.phone : 'N/A',
+      nationalId: user ? user.nationalId : 'N/A',
+      address: user?.profile?.address || 'N/A',
+      occupation: user?.profile?.occupation || 'N/A',
+      familySize: user?.profile?.familySize || 'N/A',
+      monthlyIncome: user?.profile?.monthlyIncome || 'N/A',
+      
+      // Project information
+      projectName: project ? project.name : 'Unknown Project',
+      projectLocation: project ? `${project.location?.city}, ${project.location?.district}` : 'N/A',
+      
+      // Application specific data
+      requestedUnitType: application?.applicationData?.requestedUnitType || 'N/A',
+      preferredFloor: application?.applicationData?.preferredFloor || 'N/A',
+      paymentMethod: application?.applicationData?.paymentMethod || 'N/A',
+      specialRequirements: application?.applicationData?.specialRequirements || 'N/A',
+      
+      // Documents status
+      documents: application?.documents || {},
+      
+      // Dates
+      submittedDate: application.submittedAt || application.createdAt || new Date().toISOString(),
+      reviewedDate: application.reviewedAt || 'N/A',
+      reviewedBy: application.reviewedBy || 'N/A'
+    };
+  }
+
   // Update application status
   updateApplicationStatus(applicationId, status, rejectionReason = null, reviewedBy = 'Admin') {
     const applicationIndex = this.cache.applications.findIndex(app => 
@@ -162,16 +235,17 @@ class DataService {
     }
 
     const oldStatus = this.cache.applications[applicationIndex].status;
-    this.cache.applications[applicationIndex] = {
+    const updatedApplication = {
       ...this.cache.applications[applicationIndex],
       status,
       rejectionReason: status === 'rejected' ? rejectionReason : null,
       reviewedAt: new Date().toISOString(),
-      reviewedBy
+      reviewedBy: reviewedBy || 'Admin'
     };
 
+    this.cache.applications[applicationIndex] = updatedApplication;
     this.saveToStorage();
-    this.notifySubscribers('application_status_updated', this.cache.applications[applicationIndex]);
+    this.notifySubscribers('application_status_updated', updatedApplication);
     
     // Add audit log
     this.addAuditLog({
@@ -231,6 +305,11 @@ class DataService {
     return this.cache.users.find(user => user.id === userId);
   }
 
+  // Get user by ID (alias for getUser)
+  getUserById(userId) {
+    return this.getUser(userId);
+  }
+
   // Get all projects
   getProjects() {
     return [...this.cache.projects];
@@ -245,6 +324,115 @@ class DataService {
   getProjectName(projectId) {
     const project = this.getProject(projectId);
     return project ? project.name : 'Unknown Project';
+  }
+
+  // Add new project
+  addProject(projectData) {
+    const newProject = {
+      id: `proj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: projectData.name,
+      location: projectData.location,
+      totalUnits: parseInt(projectData.totalUnits),
+      availableUnits: parseInt(projectData.availableUnits),
+      priceRange: projectData.priceRange,
+      type: projectData.type || 'Apartments',
+      status: projectData.status || 'active',
+      completionDate: projectData.completionDate,
+      description: projectData.description || '',
+      createdAt: new Date().toISOString()
+    };
+
+    this.cache.projects.unshift(newProject);
+    this.saveToStorage();
+    this.notifySubscribers('project_added', newProject);
+    
+    // Add audit log
+    this.addAuditLog({
+      action: 'project_created',
+      userId: 'admin',
+      userName: 'Admin User',
+      projectId: newProject.id,
+      details: `New project created: ${newProject.name}`
+    });
+
+    return newProject;
+  }
+
+  // Update project
+  updateProject(projectId, projectData) {
+    const projectIndex = this.cache.projects.findIndex(proj => proj.id === projectId || proj._id === projectId);
+    if (projectIndex !== -1) {
+      this.cache.projects[projectIndex] = {
+        ...this.cache.projects[projectIndex],
+        ...projectData,
+        updatedAt: new Date().toISOString()
+      };
+      this.saveToStorage();
+      this.notifySubscribers('project_updated', this.cache.projects[projectIndex]);
+      
+      // Add audit log
+      this.addAuditLog({
+        action: 'project_updated',
+        userId: 'admin',
+        userName: 'Admin User',
+        projectId: projectId,
+        details: `Project updated: ${this.cache.projects[projectIndex].name}`
+      });
+      
+      return this.cache.projects[projectIndex];
+    }
+    return null;
+  }
+
+  // Update user
+  updateUser(userId, userData) {
+    const userIndex = this.cache.users.findIndex(user => user.id === userId);
+    
+    if (userIndex === -1) {
+      throw new Error('User not found');
+    }
+
+    this.cache.users[userIndex] = {
+      ...this.cache.users[userIndex],
+      ...userData,
+      updatedAt: new Date().toISOString()
+    };
+
+    this.saveToStorage();
+    this.notifySubscribers('user_updated', this.cache.users[userIndex]);
+    
+    // Add audit log
+    this.addAuditLog({
+      action: 'user_updated',
+      userId: userId,
+      userName: this.cache.users[userIndex].name,
+      details: `User ${userId} updated: ${JSON.stringify(userData)}`
+    });
+    
+    return this.cache.users[userIndex];
+  }
+
+  // Delete project
+  deleteProject(projectId) {
+    const projectIndex = this.cache.projects.findIndex(proj => proj.id === projectId || proj._id === projectId);
+    if (projectIndex !== -1) {
+      const deletedProject = this.cache.projects[projectIndex];
+      this.cache.projects.splice(projectIndex, 1);
+      this.saveToStorage();
+      this.notifySubscribers('project_deleted', deletedProject);
+      
+      // Add audit log
+      this.addAuditLog({
+        action: 'project_deleted',
+        userId: 'admin',
+        userName: 'Admin User',
+        projectId: projectId,
+        details: `Project deleted: ${deletedProject.name}`
+      });
+      
+      return deletedProject;
+    }
+    return null;
   }
 
   // Get user details for application
@@ -297,17 +485,48 @@ class DataService {
 
   // Get enriched applications with user and project data
   getEnrichedApplications() {
+    console.log('🔍 Total applications in cache:', this.cache.applications.length);
+    console.log('🔍 Raw application data:', this.cache.applications);
+    
     return this.cache.applications.map(app => {
       const user = this.getApplicationUser(app);
-      const project = this.getProject(app.projectId);
+      
+      // Try multiple ways to get project information
+      let project = null;
+      let projectName = 'Unknown Project';
+      
+      // First try by projectId
+      if (app.projectId) {
+        project = this.getProject(app.projectId);
+        if (project) {
+          projectName = project.name;
+        }
+      }
+      
+      // If no project found, try by projectName in applicationData
+      if (!project && app.applicationData && app.applicationData.projectName) {
+        const projects = this.getProjects();
+        project = projects.find(p => p.name === app.applicationData.projectName);
+        if (project) {
+          projectName = project.name;
+        }
+      }
+      
+      // If still no project found, use the projectName from applicationData
+      if (!project && app.applicationData && app.applicationData.projectName) {
+        projectName = app.applicationData.projectName;
+      }
+      
+      console.log('🔍 Processing app:', app.id, 'projectId:', app.projectId, 'project found:', !!project, 'projectName:', projectName);
       
       return {
         ...app,
-        applicantName: user ? user.name : 'Unknown User',
-        applicantEmail: user ? user.email : 'unknown@example.com',
-        applicantPhone: user ? user.phone : 'N/A',
-        projectName: project ? project.name : (app.projectName || 'Unknown Project'),
-        priority: app.priority || 'normal'
+        applicantName: user ? user.name : (app.applicationData?.applicantName || 'Unknown User'),
+        applicantEmail: user ? user.email : (app.applicationData?.applicantEmail || 'unknown@example.com'),
+        applicantPhone: user ? user.phone : (app.applicationData?.applicantPhone || 'N/A'),
+        projectName: projectName,
+        priority: app.priority || 'normal',
+        status: app.status || 'pending'
       };
     });
   }
@@ -359,12 +578,15 @@ class DataService {
     const newNotification = {
       id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
       type: notificationData.type,
       title: notificationData.title,
       message: notificationData.message,
       userId: notificationData.userId,
       applicationId: notificationData.applicationId,
-      read: false
+      read: false,
+      isRead: false,
+      priority: notificationData.priority || 'normal'
     };
 
     this.cache.notifications.unshift(newNotification);
@@ -381,10 +603,54 @@ class DataService {
   markNotificationRead(notificationId) {
     const notificationIndex = this.cache.notifications.findIndex(notif => notif.id === notificationId);
     if (notificationIndex !== -1) {
+      this.cache.notifications[notificationIndex].isRead = true;
       this.cache.notifications[notificationIndex].read = true;
       this.saveToStorage();
       this.notifySubscribers('notification_read', this.cache.notifications[notificationIndex]);
     }
+  }
+
+  // Delete notification
+  deleteNotification(notificationId) {
+    const notificationIndex = this.cache.notifications.findIndex(notif => notif.id === notificationId);
+    if (notificationIndex !== -1) {
+      const deletedNotification = this.cache.notifications.splice(notificationIndex, 1)[0];
+      this.saveToStorage();
+      this.notifySubscribers('notification_deleted', deletedNotification);
+      return deletedNotification;
+    }
+    return null;
+  }
+
+  // Test function to verify addApplication works correctly
+  testAddApplication() {
+    console.log('🧪 Testing addApplication functionality...');
+    
+    const testAppData = {
+      applicantName: 'Test User',
+      applicantEmail: 'test@example.com',
+      applicantPhone: '01234567890',
+      nationalId: '12345678901234',
+      projectName: 'Cairo Garden Residences',
+      projectId: 'proj_001',
+      income: 25000,
+      familySize: 4,
+      currentHousing: 'Renting apartment',
+      requestedUnitType: '2BR',
+      preferredFloor: 'Any',
+      paymentMethod: 'installments',
+      specialRequirements: 'None'
+    };
+    
+    console.log('🧪 Adding test application...');
+    const newApp = this.addApplication(testAppData);
+    console.log('🧪 Test application added:', newApp);
+    console.log('🧪 Total applications now:', this.cache.applications.length);
+    
+    const enrichedApps = this.getEnrichedApplications();
+    console.log('🧪 Enriched applications:', enrichedApps);
+    
+    return newApp;
   }
 
   // Save to localStorage for persistence

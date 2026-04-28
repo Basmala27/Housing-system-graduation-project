@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import dataService from '../services/dataService';
 
 const Applications = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [applications, setApplications] = useState([]);
@@ -13,7 +14,12 @@ const Applications = () => {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectingAppId, setRejectingAppId] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletingAppId, setDeletingAppId] = useState(null);
+  const [showApproveDialog, setShowApproveDialog] = useState(false);
+  const [approvingAppId, setApprovingAppId] = useState(null);
 
+  
   
   // Load applications using data service
   const fetchApplications = () => {
@@ -22,11 +28,9 @@ const Applications = () => {
       setError(null);
       
       const applicationsData = dataService.getEnrichedApplications();
-      console.log('Loading applications from data service:', applicationsData.length);
       
       setApplications(applicationsData);
     } catch (err) {
-      console.error('Error loading applications:', err);
       setError('Failed to load applications. Please try again.');
     } finally {
       setLoading(false);
@@ -39,12 +43,20 @@ const Applications = () => {
     
     // Subscribe to data changes for live updates
     const unsubscribe = dataService.subscribe((changeType, data, cache) => {
-      console.log('Applications page received data change:', changeType);
+      // Always refetch to ensure data consistency
       fetchApplications();
     });
     
     return () => unsubscribe();
   }, []);
+
+  // Handle URL parameters for initial filtering
+  useEffect(() => {
+    const statusParam = searchParams.get('status');
+    if (statusParam === 'pending') {
+      setStatusFilter('pending');
+    }
+  }, [searchParams]);
 
   // Format date
   const formatDate = (dateString) => {
@@ -78,6 +90,37 @@ const Applications = () => {
 
     setShowRejectDialog(false);
     await updateApplicationStatus(rejectingAppId, 'rejected', rejectionReason);
+  };
+
+  // Handle application approval with confirmation
+  const handleApproveClick = (appId) => {
+    setApprovingAppId(appId);
+    setShowApproveDialog(true);
+  };
+
+  // Confirm approval
+  const confirmApproval = async () => {
+    setShowApproveDialog(false);
+    await updateApplicationStatus(approvingAppId, 'approved');
+  };
+
+  // Handle application deletion with confirmation
+  const handleDeleteClick = (appId) => {
+    setDeletingAppId(appId);
+    setShowDeleteDialog(true);
+  };
+
+  // Confirm deletion
+  const confirmDeletion = async () => {
+    setShowDeleteDialog(false);
+    try {
+      const deleted = dataService.deleteApplication(deletingAppId);
+      if (deleted) {
+        fetchApplications();
+      }
+    } catch (err) {
+      setError('Failed to delete application');
+    }
   };
 
   
@@ -196,7 +239,7 @@ const Applications = () => {
           <button className="btn btn-success" onClick={exportToCSV}>
             <i className="bi bi-download me-2"></i>Export CSV
           </button>
-          <Link to="/applications/new" className="btn btn-primary">
+                    <Link to="/applications/new" className="btn btn-primary">
             <i className="bi bi-plus-circle me-2"></i>New Application
           </Link>
         </div>
@@ -306,6 +349,10 @@ const Applications = () => {
                           <Link 
                             to={`/applications/${app._id || app.id}`}
                             className="btn btn-outline-primary"
+                            onClick={() => {
+                              console.log('👁️ View button clicked for application:', app._id || app.id);
+                              console.log('👁️ Full application data:', app);
+                            }}
                           >
                             <i className="bi bi-eye"></i>
                           </Link>

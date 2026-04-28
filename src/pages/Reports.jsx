@@ -21,19 +21,23 @@ const Reports = () => {
     setError(null);
     
     try {
-      const data = {
-        users: dataService.getUsers(),
-        projects: dataService.getProjects(),
-        applications: dataService.getApplications(),
-        auditLogs: dataService.getAuditLogs()
-      };
+      // Load all data using mock service
+      const users = dataService.getUsers();
+      const projects = dataService.getProjects();
+      const applications = dataService.getApplications();
+      const auditLogs = dataService.getAuditLogs();
       
-      setReportData(data);
+      setReportData({
+        users,
+        projects,
+        applications,
+        auditLogs
+      });
       console.log('Government Housing Reports loaded:', {
-        users: data.users.length,
-        projects: data.projects.length,
-        applications: data.applications.length,
-        auditLogs: data.auditLogs.length
+        users: users.length,
+        projects: projects.length,
+        applications: applications.length,
+        auditLogs: auditLogs.length
       });
     } catch (err) {
       console.error('Error loading report data:', err);
@@ -46,14 +50,6 @@ const Reports = () => {
   // Setup data service subscription and initial load
   useEffect(() => {
     loadReportData();
-    
-    // Subscribe to data changes for live updates
-    const unsubscribe = dataService.subscribe((changeType, data, cache) => {
-      console.log('Reports received data change:', changeType);
-      loadReportData();
-    });
-    
-    return () => unsubscribe();
   }, []);
 
   // Calculate comprehensive statistics

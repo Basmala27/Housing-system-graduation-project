@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import dataService from '../services/dataService';
 
 const NewApplication = () => {
   const navigate = useNavigate();
@@ -20,31 +21,25 @@ const NewApplication = () => {
     specialRequirements: ''
   });
   
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState({
     nationalIdCopy: null,
     incomeCertificate: null,
     birthCertificate: null,
     otherDocuments: []
   });
-  
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   // Load projects on component mount
   useEffect(() => {
     const loadProjects = () => {
       try {
-        // Use static projects for now to avoid dataService issues
-        const staticProjects = [
-          { id: 'proj_001', name: 'New Cairo Housing', status: 'active' },
-          { id: 'proj_002', name: 'Alexandria Coastal', status: 'active' },
-          { id: 'proj_003', name: 'Cairo Suburbs', status: 'active' }
-        ];
-        setProjects(staticProjects);
-        console.log('Loaded static projects:', staticProjects.length);
+        const projectsData = dataService.getProjects();
+        const activeProjects = projectsData.filter(project => project.status === 'active');
+        setProjects(activeProjects);
+        console.log('Loaded active projects from dataService:', activeProjects.length);
       } catch (err) {
         console.error('Failed to load projects:', err);
         setError('Failed to load projects');
@@ -52,6 +47,15 @@ const NewApplication = () => {
     };
 
     loadProjects();
+    
+    // Subscribe to data changes for live updates
+    const unsubscribe = dataService.subscribe((changeType, data, cache) => {
+      if (changeType === 'project_added' || changeType === 'project_updated' || changeType === 'project_deleted') {
+        loadProjects();
+      }
+    });
+    
+    return () => unsubscribe();
   }, []);
 
   // Handle input changes
@@ -66,36 +70,19 @@ const NewApplication = () => {
     if (name === 'projectName') {
       const selectedProject = projects.find(project => project.name === value);
       if (selectedProject) {
+        console.log('🔍 Selected project:', selectedProject);
+        console.log('🔍 Setting projectId to:', selectedProject.id);
         setFormData(prev => ({
           ...prev,
           projectId: selectedProject.id
         }));
+      } else {
+        console.log('❌ No project found for name:', value);
       }
     }
   };
 
-  // Handle file uploads
-  const handleFileUpload = (e, fileType) => {
-    const file = e.target.files[0];
-    if (file) {
-      setUploading(true);
-      
-      // Simulate file upload
-      setTimeout(() => {
-        setUploadedFiles(prev => ({
-          ...prev,
-          [fileType]: {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            url: `uploaded_${file.name}`
-          }
-        }));
-        setUploading(false);
-      }, 1000);
-    }
-  };
-
+  
   // Validate form
   const validateForm = () => {
     const required = ['applicantName', 'nationalId', 'applicantEmail', 'applicantPhone', 'projectName', 'income', 'familySize', 'currentHousing'];
@@ -159,8 +146,24 @@ const NewApplication = () => {
     setLoading(true);
 
     try {
-      // Simple submission without dataService for now
-      console.log('Form submitted:', formData);
+      // Prepare application data with proper structure
+      const applicationData = {
+        ...formData,
+        income: parseFloat(formData.income),
+        familySize: parseInt(formData.familySize),
+        submittedAt: new Date().toISOString(),
+        status: 'pending'
+      };
+
+      console.log('📝 Submitting application data:', applicationData);
+      console.log('📝 ProjectId being submitted:', applicationData.projectId);
+      console.log('📝 ProjectName being submitted:', applicationData.projectName);
+
+      // Save application using data service
+      const newApplication = dataService.addApplication(applicationData);
+      
+      console.log('✅ New application submitted successfully:', newApplication.id);
+      console.log('✅ Application data saved:', newApplication);
       
       setSuccess('Application submitted successfully! Redirecting to applications...');
       
@@ -323,7 +326,7 @@ const NewApplication = () => {
                         <option value="">Select a project</option>
                         {projects.map(project => (
                           <option key={project.id} value={project.name}>
-                            {project.name} - {project.location}
+                            {project.name} - {project.location?.city || 'Unknown Location'}
                           </option>
                         ))}
                       </select>
@@ -445,70 +448,13 @@ const NewApplication = () => {
                   </div>
                 </div>
 
-                {/* Document Upload */}
-                <div className="mb-4">
-                  <h5 className="mb-3">
-                    <i className="bi bi-file-earmark-text me-2"></i>
-                    Required Documents
-                  </h5>
-                  <div className="row g-3">
-                    <div className="col-md-4">
-                      <label className="form-label">National ID Copy *</label>
-                      <input
-                        type="file"
-                        className="form-control"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) => handleFileUpload(e, 'nationalIdCopy')}
-                        required
-                      />
-                      {uploadedFiles.nationalIdCopy && (
-                        <small className="text-success">
-                          <i className="bi bi-check-circle me-1"></i>
-                          {uploadedFiles.nationalIdCopy.name}
-                        </small>
-                      )}
-                    </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Income Certificate *</label>
-                      <input
-                        type="file"
-                        className="form-control"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) => handleFileUpload(e, 'incomeCertificate')}
-                        required
-                      />
-                      {uploadedFiles.incomeCertificate && (
-                        <small className="text-success">
-                          <i className="bi bi-check-circle me-1"></i>
-                          {uploadedFiles.incomeCertificate.name}
-                        </small>
-                      )}
-                    </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Birth Certificate *</label>
-                      <input
-                        type="file"
-                        className="form-control"
-                        accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) => handleFileUpload(e, 'birthCertificate')}
-                        required
-                      />
-                      {uploadedFiles.birthCertificate && (
-                        <small className="text-success">
-                          <i className="bi bi-check-circle me-1"></i>
-                          {uploadedFiles.birthCertificate.name}
-                        </small>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
+                
                 {/* Form Actions */}
                 <div className="d-flex gap-2">
                   <button
                     type="submit"
                     className="btn btn-primary"
-                    disabled={loading || uploading}
+                    disabled={loading}
                   >
                     {loading ? (
                       <>
