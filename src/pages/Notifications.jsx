@@ -20,8 +20,10 @@ const Notifications = () => {
       
       // Use real data service
       const notificationsData = dataService.getNotifications();
+      console.log('Notifications loaded:', notificationsData);
       setNotifications(notificationsData);
     } catch (err) {
+      console.error('Error loading notifications:', err);
       setError('Failed to load notifications');
     } finally {
       setLoading(false);
@@ -43,8 +45,8 @@ const Notifications = () => {
 
   // Filter notifications
   const filteredNotifications = notifications.filter(notification => {
-    if (filter.type !== 'all' && notification.type !== filter.type) return false;
-    if (filter.priority !== 'all' && notification.priority !== filter.priority) return false;
+    if (filter.type !== 'all' && (notification.type || '') !== filter.type) return false;
+    if (filter.priority !== 'all' && (notification.priority || 'medium') !== filter.priority) return false;
     if (filter.status !== 'all') {
       if (filter.status === 'read' && !notification.isRead) return false;
       if (filter.status === 'unread' && notification.isRead) return false;
@@ -259,8 +261,8 @@ const Notifications = () => {
                         </div>
                       </td>
                       <td>
-                        <span className={`badge ${getPriorityBadgeClass(notification.priority)}`}>
-                          {notification.priority.toUpperCase()}
+                        <span className={`badge ${getPriorityBadgeClass(notification.priority || 'medium')}`}>
+                          {(notification.priority || 'medium').toUpperCase()}
                         </span>
                       </td>
                       <td>
@@ -270,9 +272,9 @@ const Notifications = () => {
                       </td>
                       <td>
                         <small className="text-muted">
-                          {new Date(notification.createdAt).toLocaleDateString()}
+                          {notification.createdAt ? new Date(notification.createdAt).toLocaleDateString() : 'N/A'}
                           <br />
-                          {new Date(notification.createdAt).toLocaleTimeString()}
+                          {notification.createdAt ? new Date(notification.createdAt).toLocaleTimeString() : 'N/A'}
                         </small>
                       </td>
                       <td>
@@ -332,7 +334,7 @@ const Notifications = () => {
         <div className="col-md-3">
           <div className="card border-0 shadow-sm">
             <div className="card-body text-center">
-              <h3 className="text-danger mb-1">{notifications.filter(n => n.priority === 'high').length}</h3>
+              <h3 className="text-danger mb-1">{notifications.filter(n => (n.priority || 'medium') === 'high').length}</h3>
               <p className="text-muted mb-0">High Priority</p>
             </div>
           </div>
